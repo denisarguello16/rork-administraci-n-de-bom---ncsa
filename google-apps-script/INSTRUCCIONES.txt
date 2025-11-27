@@ -1,0 +1,88 @@
+INSTRUCCIONES PARA CONFIGURAR GOOGLE APPS SCRIPT
+=================================================
+
+Esta aplicación ahora se sincroniza con Google Sheets para guardar la información de manera persistente.
+
+## PASO 1: Crear Google Sheets
+1. Abrir Google Drive
+2. Crear una nueva hoja de cálculo (Google Sheets)
+3. Puedes nombrarla "BOM - Gestión de Insumos" o como prefieras
+
+## PASO 2: Configurar Google Apps Script
+1. En la hoja de cálculo, ir a Extensiones > Apps Script
+2. Copiar TODO el contenido del archivo Code.gs
+3. Pegar el código en el editor de Apps Script (reemplazar todo el contenido)
+4. Guardar el proyecto (Ctrl+S o Cmd+S)
+
+## PASO 3: Implementar como Aplicación Web
+1. En el editor de Apps Script, hacer clic en "Implementar" (Deploy) > "Nueva implementación" (New deployment)
+2. En "Seleccionar tipo" (Select type), hacer clic en el ícono de engranaje y elegir "Aplicación web" (Web app)
+3. Configurar:
+   - Descripción: "BOM API" (o cualquier nombre)
+   - Ejecutar como: "Yo" (Me)
+   - Quién tiene acceso: "Cualquier persona" (Anyone)
+4. Hacer clic en "Implementar" (Deploy)
+5. Autorizar los permisos cuando se soliciten
+6. COPIAR el URL de la aplicación web que se muestra (lo necesitarás en el siguiente paso)
+
+## PASO 4: Configurar la App React Native
+1. Abrir el archivo constants/api.ts en tu proyecto
+2. Reemplazar 'TU_URL_DE_GOOGLE_APPS_SCRIPT_AQUI' con el URL que copiaste
+3. Ejemplo:
+   export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycb.../exec';
+
+## ESTRUCTURA DE HOJAS QUE SE CREARÁN AUTOMÁTICAMENTE
+
+La aplicación creará 4 hojas automáticamente:
+
+1. **INFORMACION_INSUMOS**
+   - Contiene todos los registros BOM (Bill of Materials)
+   - Incluye versiones de cada registro
+   - Se actualiza cada vez que creas o modificas un registro
+
+2. **INFORMACION_PRODUCTO**
+   - Contiene toda la información de productos
+   - Incluye versiones de cada producto
+   - Se actualiza cada vez que creas o modificas un producto
+
+3. **OBSOLETO**
+   - Almacena el historial de versiones antiguas
+   - Cada vez que actualizas un registro, la versión anterior se mueve aquí
+   - Útil para auditoría y tracking de cambios
+
+4. **Logs**
+   - Registra todas las operaciones realizadas
+   - Útil para debugging y auditoría
+
+## IMPORTANTE: ACTUALIZAR LA IMPLEMENTACIÓN
+
+⚠️ Si haces cambios en el código de Google Apps Script:
+1. Guardar los cambios en el editor
+2. Ir a "Implementar" > "Gestionar implementaciones"
+3. Hacer clic en el ícono de lápiz (editar) en la implementación activa
+4. Seleccionar "Nueva versión" en el menú desplegable de "Versión"
+5. Hacer clic en "Implementar"
+
+Si no haces esto, los cambios NO se reflejarán en la app.
+
+## CARACTERÍSTICAS DEL SISTEMA DE VERSIONES
+
+- Cada registro comienza en la versión 0
+- Cada actualización incrementa la versión en 1
+- La versión anterior se guarda automáticamente en la hoja OBSOLETO
+- Puedes rastrear todos los cambios realizados en un registro
+
+## VALIDACIÓN DE CÓDIGOS DUPLICADOS
+
+La app ahora valida que no se creen registros con códigos SKU duplicados:
+- Al crear un nuevo registro, la app consulta Google Sheets
+- Si el código ya existe, muestra un error
+- Esto previene duplicados y mantiene la integridad de los datos
+
+## TROUBLESHOOTING
+
+Si encuentras problemas:
+1. Verifica que el URL en constants/api.ts sea correcto
+2. Verifica que los permisos de Google Sheets estén correctos
+3. Revisa la hoja "Logs" en Google Sheets para ver los errores
+4. Asegúrate de que la implementación esté actualizada

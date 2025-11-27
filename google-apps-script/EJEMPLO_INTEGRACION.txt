@@ -1,0 +1,370 @@
+═══════════════════════════════════════════════════════════════════════════
+  EJEMPLO DE INTEGRACIÓN CON REACT NATIVE
+═══════════════════════════════════════════════════════════════════════════
+
+Este archivo muestra cómo integrar el Google Apps Script con tu app.
+
+
+═══════════════════════════════════════════════════════════════════════════
+  1. CONFIGURAR EL URL
+═══════════════════════════════════════════════════════════════════════════
+
+Crea un archivo: constants/googleSheet.ts
+
+───────────────────────────────────────────────────────────────────────────
+// Reemplaza con tu URL de Google Apps Script
+export const GOOGLE_SCRIPT_URL = 'PEGA_TU_URL_AQUI';
+
+// Ejemplo:
+// export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx.../exec';
+───────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════
+  2. CREAR SERVICIO DE GOOGLE SHEETS
+═══════════════════════════════════════════════════════════════════════════
+
+Crea un archivo: services/googleSheetsService.ts
+
+───────────────────────────────────────────────────────────────────────────
+import { GOOGLE_SCRIPT_URL } from '@/constants/googleSheet';
+import { BOMRecord, BOMFormData } from '@/types/bom';
+import { ProductInfo, ProductFormData } from '@/types/product';
+
+export class GoogleSheetsService {
+  
+  // ============ MÉTODOS PARA BOM RECORDS ============
+  
+  static async addBOMRecord(record: BOMRecord): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'addBOMRecord',
+          record: record
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al agregar registro BOM:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async updateBOMRecord(id: string, updates: Partial<BOMFormData> & { updatedBy?: string; updatedAt?: string }): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'updateBOMRecord',
+          id: id,
+          updates: updates
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al actualizar registro BOM:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async deleteBOMRecord(id: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'deleteBOMRecord',
+          id: id
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al eliminar registro BOM:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async getBOMRecords(): Promise<{ success: boolean; data?: BOMRecord[]; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'getBOMRecords'
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al obtener registros BOM:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  // ============ MÉTODOS PARA PRODUCTOS ============
+  
+  static async addProduct(product: ProductInfo): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'addProduct',
+          product: product
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al agregar producto:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async updateProduct(id: string, updates: Partial<ProductFormData> & { updatedBy?: string; updatedAt?: string }): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'updateProduct',
+          id: id,
+          updates: updates
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al actualizar producto:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async deleteProduct(id: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'deleteProduct',
+          id: id
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al eliminar producto:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+  
+  static async getProducts(): Promise<{ success: boolean; data?: ProductInfo[]; error?: string }> {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'getProducts'
+        })
+      });
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error al obtener productos:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }
+}
+───────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════
+  3. EJEMPLO DE USO EN TUS CONTEXTOS
+═══════════════════════════════════════════════════════════════════════════
+
+Puedes usar el servicio en tus contextos para sincronizar con Google Sheets.
+
+EJEMPLO EN BOMContext.tsx:
+───────────────────────────────────────────────────────────────────────────
+import { GoogleSheetsService } from '@/services/googleSheetsService';
+
+// Dentro de tu contexto, cuando agregues un registro:
+const addRecordMutation = useMutation({
+  mutationFn: async (data: BOMFormData) => {
+    const records: BOMRecord[] = recordsQuery.data || [];
+    const newRecord: BOMRecord = {
+      ...data,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Guardar en AsyncStorage
+    const updated = [...records, newRecord];
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    
+    // NUEVO: Enviar a Google Sheets
+    const result = await GoogleSheetsService.addBOMRecord(newRecord);
+    
+    if (!result.success) {
+      console.error('Error al guardar en Google Sheets:', result.error);
+      // Opcional: mostrar alerta al usuario
+    } else {
+      console.log('✅ Guardado exitosamente en Google Sheets');
+    }
+    
+    return updated;
+  },
+  onSuccess: (updated) => {
+    queryClient.setQueryData(['bomRecords'], updated);
+  }
+});
+───────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════
+  4. SINCRONIZACIÓN INICIAL (OPCIONAL)
+═══════════════════════════════════════════════════════════════════════════
+
+Si quieres cargar datos existentes desde Google Sheets cuando la app inicia:
+
+───────────────────────────────────────────────────────────────────────────
+// En tu contexto o en un useEffect inicial
+useEffect(() => {
+  const syncFromGoogleSheets = async () => {
+    console.log('🔄 Sincronizando desde Google Sheets...');
+    
+    const result = await GoogleSheetsService.getBOMRecords();
+    
+    if (result.success && result.data) {
+      // Guardar en AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(result.data));
+      queryClient.setQueryData(['bomRecords'], result.data);
+      console.log('✅ Sincronización completa:', result.data.length, 'registros');
+    } else {
+      console.error('❌ Error al sincronizar:', result.error);
+    }
+  };
+  
+  syncFromGoogleSheets();
+}, []);
+───────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════
+  5. EJEMPLO COMPLETO DE FLUJO
+═══════════════════════════════════════════════════════════════════════════
+
+Flujo cuando un usuario crea un registro:
+
+1. Usuario completa el formulario en create-record.tsx
+2. Presiona "Guardar"
+3. addRecord() se ejecuta en BOMContext
+4. El registro se guarda en AsyncStorage (local)
+5. El registro se envía a Google Sheets (remoto)
+6. La UI se actualiza con el nuevo registro
+7. Mensaje de éxito se muestra al usuario
+
+Si falla Google Sheets:
+- El registro aún se guarda localmente
+- Se muestra un log de error
+- La app sigue funcionando normalmente
+
+
+═══════════════════════════════════════════════════════════════════════════
+  6. PROBAR LA INTEGRACIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+Para probar:
+
+1. Agrega el URL en constants/googleSheet.ts
+2. Crea el servicio en services/googleSheetsService.ts
+3. Integra el servicio en tu contexto (BOMContext.tsx)
+4. Ejecuta la app y crea un registro
+5. Ve a tu Google Sheet y verifica que aparezca el registro
+
+
+═══════════════════════════════════════════════════════════════════════════
+  7. EJEMPLO DE PRUEBA RÁPIDA
+═══════════════════════════════════════════════════════════════════════════
+
+Puedes crear una pantalla de prueba temporal:
+
+───────────────────────────────────────────────────────────────────────────
+import { GoogleSheetsService } from '@/services/googleSheetsService';
+
+export default function TestScreen() {
+  const testConnection = async () => {
+    console.log('🧪 Probando conexión...');
+    
+    const testRecord: BOMRecord = {
+      id: 'test-' + Date.now(),
+      codigo_sku: '1-999',
+      descripcion_sku: 'REGISTRO DE PRUEBA',
+      categoria_insumo: 'Test',
+      codigo_insumo: 'TEST-001',
+      descripcion_insumo: 'Insumo de prueba',
+      cantidad_requerida: 1,
+      cantidad_piezas_por_caja: 1,
+      consumo_por_caja: 1,
+      unidad_medida: 'UND',
+      createdBy: 'Test User',
+      createdAt: new Date().toISOString()
+    };
+    
+    const result = await GoogleSheetsService.addBOMRecord(testRecord);
+    
+    if (result.success) {
+      Alert.alert('✅ Éxito', 'Conexión exitosa! Revisa tu Google Sheet.');
+    } else {
+      Alert.alert('❌ Error', result.error || 'Error desconocido');
+    }
+  };
+  
+  return (
+    <Button title="Probar Conexión" onPress={testConnection} />
+  );
+}
+───────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════
+  ✨ RESUMEN
+═══════════════════════════════════════════════════════════════════════════
+
+1. ✅ Configura el URL en constants/googleSheet.ts
+2. ✅ Crea el servicio en services/googleSheetsService.ts  
+3. ✅ Integra en tus contextos (BOMContext, ProductContext)
+4. ✅ Prueba creando un registro
+5. ✅ Verifica en Google Sheets
+
+¡Y listo! Tu app ahora guarda todo en Google Sheets automáticamente.
