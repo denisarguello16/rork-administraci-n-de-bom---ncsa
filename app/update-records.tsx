@@ -332,12 +332,6 @@ export default function UpdateRecordsScreen() {
                     !formData.categoria_insumo && styles.dropdownDisabled
                   ]}
                   onPress={() => {
-                    console.log('========== PICKER DESCRIPCION INSUMO PRESIONADO ==========');
-                    console.log('Categoría actual:', formData.categoria_insumo);
-                    console.log('Descripción actual:', formData.descripcion_insumo);
-                    console.log('Insumos filtrados:', filteredInsumos.length);
-                    console.log('Primeros 3 insumos:', filteredInsumos.slice(0, 3).map(i => i.descripcion));
-                    
                     if (!formData.categoria_insumo) {
                       Alert.alert(
                         'Categoría Requerida',
@@ -348,14 +342,13 @@ export default function UpdateRecordsScreen() {
                     if (filteredInsumos.length === 0) {
                       Alert.alert(
                         'Sin insumos',
-                        `No hay insumos disponibles para la categoría "${formData.categoria_insumo}"`
+                        'No hay insumos disponibles para esta categoría'
                       );
                       return;
                     }
-                    console.log('Abriendo modal de insumos...');
                     setShowInsumoModal(true);
                   }}
-                  activeOpacity={0.7}
+                  disabled={!formData.categoria_insumo}
                 >
                   <Text
                     style={[
@@ -365,13 +358,11 @@ export default function UpdateRecordsScreen() {
                   >
                     {formData.descripcion_insumo || 'Seleccione un insumo'}
                   </Text>
-                  <ChevronDown size={20} color={!formData.categoria_insumo ? '#cbd5e1' : CARNIC_COLORS.gray[500]} />
+                  <ChevronDown size={20} color={CARNIC_COLORS.gray[500]} />
                 </TouchableOpacity>
-                {formData.categoria_insumo && (
+                {formData.categoria_insumo && filteredInsumos.length > 0 && (
                   <Text style={styles.hint}>
-                    {filteredInsumos.length > 0 
-                      ? `${filteredInsumos.length} insumo(s) disponible(s) - Toca para cambiar` 
-                      : `Sin insumos para "${formData.categoria_insumo}"`}
+                    {filteredInsumos.length} insumo(s) disponible(s)
                   </Text>
                 )}
               </View>
@@ -766,6 +757,7 @@ const styles = StyleSheet.create({
   },
   dropdownDisabled: {
     backgroundColor: '#f1f5f9',
+    opacity: 0.6,
   },
   disabledInput: {
     backgroundColor: '#f1f5f9',
