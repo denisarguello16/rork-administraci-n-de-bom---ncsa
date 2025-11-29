@@ -143,7 +143,10 @@ export default function CreateRecordScreen() {
       
       const additionalItem = additionalInsumos.find(item => item.id === additionalInsumoModalId);
       if (additionalItem && selectedProductInfo) {
-        if (additionalItem.categoria_insumo === 'Etiqueta Paquetería') {
+        if (additionalItem.categoria_insumo === 'Empaque Primario') {
+          updateAdditionalInsumo(additionalInsumoModalId, 'consumo_por_caja', selectedProductInfo.cantidad_paquetes_por_caja);
+          updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', 1);
+        } else if (additionalItem.categoria_insumo === 'Etiqueta Paquetería') {
           updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', selectedProductInfo.cantidad_paquetes_por_caja);
         } else if (additionalItem.categoria_insumo === 'Etiqueta Caja') {
           updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', 1);
@@ -156,6 +159,7 @@ export default function CreateRecordScreen() {
       
       setAdditionalInsumoModalId(null);
     } else {
+      const isEmpaquePrimario = selectedCategory === 'Empaque Primario';
       const isEtiquetaPaqueteria = selectedCategory === 'Etiqueta Paquetería';
       const isEtiquetaCaja = selectedCategory === 'Etiqueta Caja';
       const isTapaFondoCarton = selectedCategory === 'Tapa Carton Corrugado' || selectedCategory === 'Fondo Carton Corrugado';
@@ -163,7 +167,10 @@ export default function CreateRecordScreen() {
       let cantidadPiezas = 0;
       let consumoPorCaja = 0;
       
-      if (isEtiquetaPaqueteria && selectedProductInfo) {
+      if (isEmpaquePrimario && selectedProductInfo) {
+        cantidadPiezas = 1;
+        consumoPorCaja = selectedProductInfo.cantidad_paquetes_por_caja;
+      } else if (isEtiquetaPaqueteria && selectedProductInfo) {
         cantidadPiezas = selectedProductInfo.cantidad_paquetes_por_caja;
       } else if (isEtiquetaCaja && selectedProductInfo) {
         cantidadPiezas = 1;
