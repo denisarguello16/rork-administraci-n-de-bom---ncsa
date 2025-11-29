@@ -45,18 +45,23 @@ export default function UpdateRecordsScreen() {
       return false;
     }
     
-    if (!record.descripcion_insumo || !record.codigo_sku || !record.descripcion_sku) {
+    if (!record.descripcion_insumo || !record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
       console.log('Registro con datos incompletos:', record);
       return false;
     }
     
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      record.codigo_sku.toLowerCase().includes(searchLower) ||
-      record.descripcion_sku.toLowerCase().includes(searchLower) ||
-      record.categoria_insumo.toLowerCase().includes(searchLower) ||
-      record.descripcion_insumo.toLowerCase().includes(searchLower)
-    );
+    try {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (record.codigo_sku || '').toLowerCase().includes(searchLower) ||
+        (record.descripcion_sku || '').toLowerCase().includes(searchLower) ||
+        (record.categoria_insumo || '').toLowerCase().includes(searchLower) ||
+        (record.descripcion_insumo || '').toLowerCase().includes(searchLower)
+      );
+    } catch (error) {
+      console.error('Error filtrando registro:', error, record);
+      return false;
+    }
   });
 
   const filteredInsumos = CATALOGO_INSUMOS.filter(
@@ -228,7 +233,7 @@ export default function UpdateRecordsScreen() {
               <View key={record.id} style={styles.recordCard}>
                 <View style={styles.recordHeader}>
                   <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{record.categoria_insumo}</Text>
+                    <Text style={styles.categoryText}>{record?.categoria_insumo || 'N/A'}</Text>
                   </View>
                   <View style={styles.recordActions}>
                     <TouchableOpacity
@@ -246,31 +251,31 @@ export default function UpdateRecordsScreen() {
                   </View>
                 </View>
 
-                <Text style={styles.partNumber}>SKU: {record.codigo_sku || 'N/A'}</Text>
-                <Text style={styles.partName}>{record.descripcion_sku || 'N/A'}</Text>
+                <Text style={styles.partNumber}>SKU: {record?.codigo_sku || 'N/A'}</Text>
+                <Text style={styles.partName}>{record?.descripcion_sku || 'N/A'}</Text>
 
                 <View style={styles.recordDetails}>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Código Insumo:</Text>
-                    <Text style={styles.detailValue}>{record.codigo_insumo || 'N/A'}</Text>
+                    <Text style={styles.detailValue}>{record?.codigo_insumo || 'N/A'}</Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Cantidad Req:</Text>
                     <Text style={styles.detailValue}>
-                      {record.unidad_medida === 'BOLSAS' || record.unidad_medida === 'UND'
-                        ? Math.round(record.cantidad_requerida)
-                        : record.cantidad_requerida.toFixed(6)} {record.unidad_medida}
+                      {record?.unidad_medida === 'BOLSAS' || record?.unidad_medida === 'UND'
+                        ? Math.round(record?.cantidad_requerida || 0)
+                        : (record?.cantidad_requerida || 0).toFixed(6)} {record?.unidad_medida || ''}
                     </Text>
                   </View>
                 </View>
 
                 <Text style={styles.description} numberOfLines={2}>
-                  {record.descripcion_insumo || 'N/A'}
+                  {record?.descripcion_insumo || 'N/A'}
                 </Text>
 
                 <Text style={styles.metadata}>
-                  Creado por {record.createdBy || 'Desconocido'} el{' '}
-                  {record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
+                  Creado por {record?.createdBy || 'Desconocido'} el{' '}
+                  {record?.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
                 </Text>
               </View>
             ))}
