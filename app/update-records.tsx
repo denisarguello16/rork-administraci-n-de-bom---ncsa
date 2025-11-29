@@ -39,30 +39,39 @@ export default function UpdateRecordsScreen() {
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
 
-  const filteredRecords = records.filter((record: BOMRecord | null | undefined): record is BOMRecord => {
-    if (!record) {
-      console.log('Registro undefined o null encontrado');
-      return false;
-    }
-    
-    if (!record.descripcion_insumo || !record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
-      console.log('Registro con datos incompletos:', record);
-      return false;
-    }
-    
-    try {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        (record.codigo_sku || '').toLowerCase().includes(searchLower) ||
-        (record.descripcion_sku || '').toLowerCase().includes(searchLower) ||
-        (record.categoria_insumo || '').toLowerCase().includes(searchLower) ||
-        (record.descripcion_insumo || '').toLowerCase().includes(searchLower)
-      );
-    } catch (error) {
-      console.error('Error filtrando registro:', error, record);
-      return false;
-    }
-  });
+  const filteredRecords = records
+    .filter((record: any): record is BOMRecord => {
+      if (!record) {
+        console.log('Registro undefined o null encontrado');
+        return false;
+      }
+      
+      if (typeof record !== 'object') {
+        console.log('Registro no es un objeto:', record);
+        return false;
+      }
+      
+      if (!record.descripcion_insumo || !record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
+        console.log('Registro con datos incompletos:', record);
+        return false;
+      }
+      
+      return true;
+    })
+    .filter((record: BOMRecord) => {
+      try {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+          (record.codigo_sku || '').toLowerCase().includes(searchLower) ||
+          (record.descripcion_sku || '').toLowerCase().includes(searchLower) ||
+          (record.categoria_insumo || '').toLowerCase().includes(searchLower) ||
+          (record.descripcion_insumo || '').toLowerCase().includes(searchLower)
+        );
+      } catch (error) {
+        console.error('Error filtrando registro:', error, record);
+        return false;
+      }
+    });
 
   const filteredInsumos = CATALOGO_INSUMOS.filter(
     insumo => insumo.categoria === formData.categoria_insumo
@@ -229,7 +238,12 @@ export default function UpdateRecordsScreen() {
           </View>
         ) : (
           <ScrollView style={styles.recordsList} contentContainerStyle={styles.recordsContent}>
-            {filteredRecords.map((record: BOMRecord) => (
+            {filteredRecords.map((record: BOMRecord) => {
+              if (!record || !record.descripcion_insumo) {
+                console.error('Registro inválido en render:', record);
+                return null;
+              }
+              return (
               <View key={record.id} style={styles.recordCard}>
                 <View style={styles.recordHeader}>
                   <View style={styles.categoryBadge}>
@@ -278,7 +292,8 @@ export default function UpdateRecordsScreen() {
                   {record?.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
                 </Text>
               </View>
-            ))}
+            );
+            })}
           </ScrollView>
         )}
 
