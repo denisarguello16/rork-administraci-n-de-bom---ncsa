@@ -39,8 +39,12 @@ export const [BOMContext, useBOM] = createContextHook(() => {
               console.log('Registro null/undefined encontrado');
               return false;
             }
-            if (!record.descripcion_insumo) {
-              console.log('Registro sin descripcion_insumo:', record);
+            if (!record.descripcion_insumo || record.descripcion_insumo === '') {
+              console.log('Registro sin descripcion_insumo:', JSON.stringify(record));
+              return false;
+            }
+            if (!record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
+              console.log('Registro con campos requeridos faltantes:', JSON.stringify(record));
               return false;
             }
             return true;
@@ -53,11 +57,25 @@ export const [BOMContext, useBOM] = createContextHook(() => {
 
         console.log('No se pudieron cargar registros de Google Sheets, usando cache local');
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        const cachedRecords = stored ? JSON.parse(stored) : [];
+        return cachedRecords.filter((record: any) => 
+          record && 
+          record.descripcion_insumo && 
+          record.codigo_sku && 
+          record.descripcion_sku && 
+          record.categoria_insumo
+        );
       } catch (error) {
         console.error('Error al cargar desde Google Sheets, usando cache local:', error);
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        const cachedRecords = stored ? JSON.parse(stored) : [];
+        return cachedRecords.filter((record: any) => 
+          record && 
+          record.descripcion_insumo && 
+          record.codigo_sku && 
+          record.descripcion_sku && 
+          record.categoria_insumo
+        );
       }
     },
     refetchInterval: 30000,
