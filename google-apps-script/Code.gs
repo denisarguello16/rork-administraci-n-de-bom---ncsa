@@ -1,5 +1,5 @@
-const SPREADSHEET_ID = 'PON_AQUI_TU_SPREADSHEET_ID';
-const SHEET_NAME = 'BOM'; // Cambia al nombre real de la hoja
+const SPREADSHEET_ID = '1x-6_WlOj887-BB08ZUz1skr4Y2c7sUP2Tro8Ia4IK34';
+const SHEET_NAME = 'BOM 2025'; // Cambia al nombre real de la hoja
 
 function getSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
