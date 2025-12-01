@@ -88,19 +88,17 @@ export default function CreateRecordScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryModalInsumoId, setCategoryModalInsumoId] = useState<string | null>(null);
 
-  const filteredInsumos = CATALOGO_INSUMOS.filter(
-    insumo => {
-      const matchesCategory = insumo.categoria === selectedCategory;
-      if (!insumoSearchText.trim()) return matchesCategory;
-      
-      const searchLower = insumoSearchText.toLowerCase();
-      const matchesSearch = 
-        insumo.descripcion.toLowerCase().includes(searchLower) ||
-        insumo.codigo.toLowerCase().includes(searchLower);
-      
-      return matchesCategory && matchesSearch;
-    }
-  );
+  const filteredInsumos = CATALOGO_INSUMOS.filter(insumo => {
+    const matchesCategory = insumo.categoria === selectedCategory;
+    if (!insumoSearchText.trim()) return matchesCategory;
+
+    const searchLower = insumoSearchText.toLowerCase();
+    const matchesSearch =
+      insumo.descripcion.toLowerCase().includes(searchLower) ||
+      insumo.codigo.toLowerCase().includes(searchLower);
+
+    return matchesCategory && matchesSearch;
+  });
 
   const formatCodigoSKU = (text: string): string => {
     const cleaned = text.replace(/[^0-9]/g, '').slice(0, 4);
@@ -112,9 +110,9 @@ export default function CreateRecordScreen() {
   const handleCodigoSKUChange = (text: string) => {
     const formatted = formatCodigoSKU(text);
     setCodigoSKU(formatted);
-    
+
     if (formatted.length > 0) {
-      const matches = products.filter((p: ProductInfo) => 
+      const matches = products.filter((p: ProductInfo) =>
         p.codigo.toLowerCase().includes(formatted.toLowerCase())
       );
       setMatchingProducts(matches);
@@ -140,33 +138,46 @@ export default function CreateRecordScreen() {
       updateAdditionalInsumo(additionalInsumoModalId, 'codigo_insumo', insumo.codigo);
       updateAdditionalInsumo(additionalInsumoModalId, 'unidad_medida', insumo.unidad_medida);
       updateAdditionalInsumo(additionalInsumoModalId, 'selectedInsumo', insumo);
-      
+
       const additionalItem = additionalInsumos.find(item => item.id === additionalInsumoModalId);
       if (additionalItem && selectedProductInfo) {
         if (additionalItem.categoria_insumo === 'Empaque Primario') {
-          updateAdditionalInsumo(additionalInsumoModalId, 'consumo_por_caja', selectedProductInfo.cantidad_paquetes_por_caja);
+          updateAdditionalInsumo(
+            additionalInsumoModalId,
+            'consumo_por_caja',
+            selectedProductInfo.cantidad_paquetes_por_caja
+          );
           updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', 1);
         } else if (additionalItem.categoria_insumo === 'Etiqueta Paquetería') {
-          updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', selectedProductInfo.cantidad_paquetes_por_caja);
+          updateAdditionalInsumo(
+            additionalInsumoModalId,
+            'cantidad_piezas_por_caja',
+            selectedProductInfo.cantidad_paquetes_por_caja
+          );
         } else if (additionalItem.categoria_insumo === 'Etiqueta Caja') {
           updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', 1);
           updateAdditionalInsumo(additionalInsumoModalId, 'consumo_por_caja', 2);
-        } else if (additionalItem.categoria_insumo === 'Tapa Carton Corrugado' || additionalItem.categoria_insumo === 'Fondo Carton Corrugado' || additionalItem.categoria_insumo === 'Bolsa Master') {
+        } else if (
+          additionalItem.categoria_insumo === 'Tapa Carton Corrugado' ||
+          additionalItem.categoria_insumo === 'Fondo Carton Corrugado' ||
+          additionalItem.categoria_insumo === 'Bolsa Master'
+        ) {
           updateAdditionalInsumo(additionalInsumoModalId, 'consumo_por_caja', 1);
           updateAdditionalInsumo(additionalInsumoModalId, 'cantidad_piezas_por_caja', 1);
         }
       }
-      
+
       setAdditionalInsumoModalId(null);
     } else {
       const isEmpaquePrimario = selectedCategory === 'Empaque Primario';
       const isEtiquetaPaqueteria = selectedCategory === 'Etiqueta Paquetería';
       const isEtiquetaCaja = selectedCategory === 'Etiqueta Caja';
-      const isTapaFondoCarton = selectedCategory === 'Tapa Carton Corrugado' || selectedCategory === 'Fondo Carton Corrugado';
+      const isTapaFondoCarton =
+        selectedCategory === 'Tapa Carton Corrugado' || selectedCategory === 'Fondo Carton Corrugado';
       const isBolsaMaster = selectedCategory === 'Bolsa Master';
       let cantidadPiezas = 0;
       let consumoPorCaja = 0;
-      
+
       if (isEmpaquePrimario && selectedProductInfo) {
         cantidadPiezas = 1;
         consumoPorCaja = selectedProductInfo.cantidad_paquetes_por_caja;
@@ -179,11 +190,11 @@ export default function CreateRecordScreen() {
         cantidadPiezas = 1;
         consumoPorCaja = 1;
       }
-      
+
       setCategoriesData(prev => ({
         ...prev,
         [targetCategory]: {
-          ...prev[targetCategory],
+          ...(prev[targetCategory] || { ...initialCategoryData }),
           descripcion_insumo: insumo.descripcion,
           codigo_insumo: insumo.codigo,
           unidad_medida: insumo.unidad_medida,
@@ -200,26 +211,89 @@ export default function CreateRecordScreen() {
   const getCategoriesForPackageType = (tipoEmpaque: string): string[] => {
     switch (tipoEmpaque) {
       case 'BULK PACK':
-        return ['Bolsa Master', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado'];
+        return [
+          'Bolsa Master',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+        ];
       case 'CAJAS INDIVIDUALES':
-        return ['Empaque Primario', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Caja Detalle Tortas', 'Caja Master Tortas', 'Papel Encerado', 'Tapa Carton Corrugado', 'Fondo Carton Corrugado', 'Fleje'];
+        return [
+          'Empaque Primario',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Caja Detalle Tortas',
+          'Caja Master Tortas',
+          'Papel Encerado',
+          'Tapa Carton Corrugado',
+          'Fondo Carton Corrugado',
+          'Fleje',
+        ];
       case 'FUNDA PLASTICA':
-        return ['Bolsa Master', 'Empaque Primario', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado', 'Grapa'];
+        return [
+          'Bolsa Master',
+          'Empaque Primario',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+          'Grapa',
+        ];
       case 'INDIVIDUALLY WRAPPED (IW)':
-        return ['Bolsa Master', 'Empaque Primario', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado'];
+        return [
+          'Bolsa Master',
+          'Empaque Primario',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+        ];
       case 'LAYER PACK (LP)':
-        return ['Bolsa Master', 'Empaque Primario', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado'];
+        return [
+          'Bolsa Master',
+          'Empaque Primario',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+        ];
       case 'THERMOPACK':
-        return ['Bolsa Master', 'Etiqueta Paquetería', 'Etiqueta Paquetería 2', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado', 'Film Tapa', 'Film Fondo'];
+        return [
+          'Bolsa Master',
+          'Etiqueta Paquetería',
+          'Etiqueta Paquetería 2',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+          'Film Tapa',
+          'Film Fondo',
+        ];
       case 'VACUUM PACK':
       case 'VACUUM PACK TBG':
-        return ['Bolsa Master', 'Empaque Primario', 'Etiqueta Paquetería', 'Etiqueta Paquetería 2', 'Etiqueta Caja', 'Etiqueta Caja 2', 'Fleje', 'Fondo Carton Corrugado', 'Tapa Carton Corrugado'];
+        return [
+          'Bolsa Master',
+          'Empaque Primario',
+          'Etiqueta Paquetería',
+          'Etiqueta Paquetería 2',
+          'Etiqueta Caja',
+          'Etiqueta Caja 2',
+          'Fleje',
+          'Fondo Carton Corrugado',
+          'Tapa Carton Corrugado',
+        ];
       default:
         return [];
     }
   };
 
-  const visibleCategories = selectedProductInfo 
+  const visibleCategories = selectedProductInfo
     ? getCategoriesForPackageType(selectedProductInfo.tipo_empaque)
     : [];
 
@@ -231,13 +305,13 @@ export default function CreateRecordScreen() {
       } else if (categoria === 'Grapa') {
         autoConsumoPorCaja = 0.00294;
       }
-      
+
       const flejeInsumo = CATALOGO_INSUMOS.find(i => i.categoria === categoria);
       if (flejeInsumo) {
         setCategoriesData(prev => ({
           ...prev,
           [categoria]: {
-            ...prev[categoria],
+            ...(prev[categoria] || { ...initialCategoryData }),
             descripcion_insumo: flejeInsumo.descripcion,
             codigo_insumo: flejeInsumo.codigo,
             unidad_medida: flejeInsumo.unidad_medida,
@@ -276,9 +350,9 @@ export default function CreateRecordScreen() {
   };
 
   const updateAdditionalInsumo = (id: string, field: keyof AdditionalInsumo, value: any) => {
-    setAdditionalInsumos(prev => prev.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setAdditionalInsumos(prev =>
+      prev.map(item => (item.id === id ? { ...item, [field]: value } : item))
+    );
   };
 
   useEffect(() => {
@@ -286,7 +360,7 @@ export default function CreateRecordScreen() {
 
     if (selectedProductInfo.tipo_empaque === 'THERMOPACK' && selectedProductInfo.size_empaque) {
       const cantidadPaquetes = selectedProductInfo.cantidad_paquetes_por_caja || 0;
-      
+
       let consumoFilmFondo = 0;
       let consumoFilmTapa = 0;
 
@@ -312,7 +386,7 @@ export default function CreateRecordScreen() {
         setCategoriesData(prev => ({
           ...prev,
           'Film Fondo': {
-            ...prev['Film Fondo'],
+            ...(prev['Film Fondo'] || { ...initialCategoryData }),
             descripcion_insumo: filmFondoInsumo.descripcion,
             codigo_insumo: filmFondoInsumo.codigo,
             unidad_medida: filmFondoInsumo.unidad_medida,
@@ -327,7 +401,7 @@ export default function CreateRecordScreen() {
         setCategoriesData(prev => ({
           ...prev,
           'Film Tapa': {
-            ...prev['Film Tapa'],
+            ...(prev['Film Tapa'] || { ...initialCategoryData }),
             descripcion_insumo: filmTapaInsumo.descripcion,
             codigo_insumo: filmTapaInsumo.codigo,
             unidad_medida: filmTapaInsumo.unidad_medida,
@@ -341,18 +415,26 @@ export default function CreateRecordScreen() {
   }, [selectedProductInfo]);
 
   useEffect(() => {
+    // Recalcular cantidad_requerida para categorías principales
     Object.keys(categoriesData).forEach(categoria => {
       const categoryData = categoriesData[categoria];
+      if (!categoryData) return;
+
       const insumo = categoryData.selectedInsumo;
-      
       if (insumo) {
         let cantidadCalculada = 0;
-        const realCategoria = (categoria === 'Etiqueta Paquetería 2' ? 'Etiqueta Paquetería' : 
-                                categoria === 'Etiqueta Caja 2' ? 'Etiqueta Caja' : categoria);
+        const realCategoria =
+          categoria === 'Etiqueta Paquetería 2'
+            ? 'Etiqueta Paquetería'
+            : categoria === 'Etiqueta Caja 2'
+            ? 'Etiqueta Caja'
+            : categoria;
         const isEtiquetaPaqueteria = realCategoria === 'Etiqueta Paquetería';
         const isEtiquetaCaja = realCategoria === 'Etiqueta Caja';
-        const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(realCategoria as any);
-        
+        const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+          realCategoria as any
+        );
+
         if (isEtiquetaPaqueteria) {
           if (categoryData.cantidad_piezas_por_caja > 0) {
             cantidadCalculada = categoryData.cantidad_piezas_por_caja / insumo.contenido_por_unidad;
@@ -363,19 +445,21 @@ export default function CreateRecordScreen() {
           }
         } else if (usaConsumoPorPieza) {
           if (categoryData.cantidad_piezas_por_caja > 0 && categoryData.consumo_por_caja > 0) {
-            cantidadCalculada = (categoryData.cantidad_piezas_por_caja * categoryData.consumo_por_caja) / insumo.contenido_por_unidad;
+            cantidadCalculada =
+              (categoryData.cantidad_piezas_por_caja * categoryData.consumo_por_caja) /
+              insumo.contenido_por_unidad;
           }
         } else {
           if (categoryData.consumo_por_caja > 0) {
             cantidadCalculada = categoryData.consumo_por_caja / insumo.contenido_por_unidad;
           }
         }
-        
+
         if (cantidadCalculada !== categoryData.cantidad_requerida) {
           setCategoriesData(prev => ({
             ...prev,
             [categoria]: {
-              ...prev[categoria],
+              ...(prev[categoria] || { ...initialCategoryData }),
               cantidad_requerida: cantidadCalculada,
             },
           }));
@@ -383,14 +467,17 @@ export default function CreateRecordScreen() {
       }
     });
 
+    // Recalcular cantidad_requerida para insumos adicionales
     additionalInsumos.forEach(item => {
       if (item.selectedInsumo) {
         const insumo = item.selectedInsumo;
         let cantidadCalculada = 0;
-        const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(item.categoria_insumo);
+        const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+          item.categoria_insumo
+        );
         const isEtiquetaPaqueteria = item.categoria_insumo === 'Etiqueta Paquetería';
         const isEtiquetaCaja = item.categoria_insumo === 'Etiqueta Caja';
-        
+
         if (isEtiquetaPaqueteria) {
           if (item.cantidad_piezas_por_caja > 0) {
             cantidadCalculada = item.cantidad_piezas_por_caja / insumo.contenido_por_unidad;
@@ -401,14 +488,15 @@ export default function CreateRecordScreen() {
           }
         } else if (usaConsumoPorPieza) {
           if (item.cantidad_piezas_por_caja > 0 && item.consumo_por_caja > 0) {
-            cantidadCalculada = (item.cantidad_piezas_por_caja * item.consumo_por_caja) / insumo.contenido_por_unidad;
+            cantidadCalculada =
+              (item.cantidad_piezas_por_caja * item.consumo_por_caja) / insumo.contenido_por_unidad;
           }
         } else {
           if (item.consumo_por_caja > 0) {
             cantidadCalculada = item.consumo_por_caja / insumo.contenido_por_unidad;
           }
         }
-        
+
         if (cantidadCalculada !== item.cantidad_requerida) {
           updateAdditionalInsumo(item.id, 'cantidad_requerida', cantidadCalculada);
         }
@@ -420,7 +508,7 @@ export default function CreateRecordScreen() {
     setCategoriesData(prev => ({
       ...prev,
       [categoria]: {
-        ...prev[categoria],
+        ...(prev[categoria] || { ...initialCategoryData }),
         [field]: value,
       },
     }));
@@ -436,68 +524,105 @@ export default function CreateRecordScreen() {
       return;
     }
 
+    // ✅ EVITAR ACCEDER A data.descripcion_insumo SI data ES undefined
     const categoriasConDatos = visibleCategories.filter(categoria => {
-      const data = categoriesData[categoria];
+      const data = categoriesData[categoria] || initialCategoryData;
       const isEtiquetaPaqueteria2 = categoria === 'Etiqueta Paquetería 2';
       const isEtiquetaCaja2 = categoria === 'Etiqueta Caja 2';
-      if ((isEtiquetaPaqueteria2 || isEtiquetaCaja2) && data.descripcion_insumo.trim() === '') {
+      const desc = (data.descripcion_insumo || '').trim();
+      const consumo = data.consumo_por_caja || 0;
+
+      if ((isEtiquetaPaqueteria2 || isEtiquetaCaja2) && desc === '') {
         return false;
       }
-      return data.descripcion_insumo.trim() !== '' && data.consumo_por_caja > 0;
+      return desc !== '' && consumo > 0;
     });
 
-    const insumosAdicionalesValidos = additionalInsumos.filter(item => 
-      item.categoria_insumo.trim() !== '' && 
-      item.descripcion_insumo.trim() !== '' && 
-      item.consumo_por_caja > 0
-    );
+    const insumosAdicionalesValidos = additionalInsumos.filter(item => {
+      const cat = (item.categoria_insumo || '').trim();
+      const desc = (item.descripcion_insumo || '').trim();
+      return cat !== '' && desc !== '' && item.consumo_por_caja > 0;
+    });
 
     if (categoriasConDatos.length === 0 && insumosAdicionalesValidos.length === 0) {
       Alert.alert('Error', 'Debe completar al menos una categoría de insumo');
       return;
     }
 
+    // ✅ VALIDACIÓN POR CADA CATEGORÍA CON DATOS, SIEMPRE CON FALLBACK
     for (const categoria of categoriasConDatos) {
-      const data = categoriesData[categoria];
-      const realCategoria = (categoria === 'Etiqueta Paquetería 2' ? 'Etiqueta Paquetería' : 
-                              categoria === 'Etiqueta Caja 2' ? 'Etiqueta Caja' : categoria);
+      const data = categoriesData[categoria] || initialCategoryData;
+
+      let realCategoria = categoria;
+      if (categoria === 'Etiqueta Paquetería 2') {
+        realCategoria = 'Etiqueta Paquetería';
+      } else if (categoria === 'Etiqueta Caja 2') {
+        realCategoria = 'Etiqueta Caja';
+      }
+
       const isEtiquetaPaqueteria = realCategoria === 'Etiqueta Paquetería';
       const isEtiquetaCaja = realCategoria === 'Etiqueta Caja';
-      const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(realCategoria);
+      const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(realCategoria as any);
 
-      if (!data.codigo_insumo.trim()) {
+      const codigoInsumo = (data.codigo_insumo || '').trim();
+      const descInsumo = (data.descripcion_insumo || '').trim();
+      const consumo = data.consumo_por_caja || 0;
+      const piezasPorCaja = data.cantidad_piezas_por_caja || 0;
+
+      if (!codigoInsumo) {
         Alert.alert('Error', `El código de insumo es requerido en "${categoria}"`);
         return;
       }
-      if (!data.descripcion_insumo.trim()) {
+      if (!descInsumo) {
         Alert.alert('Error', `La descripción de insumo es requerida en "${categoria}"`);
         return;
       }
-      if (!isEtiquetaPaqueteria && !isEtiquetaCaja && data.consumo_por_caja <= 0) {
-        Alert.alert('Error', `El ${usaConsumoPorPieza ? 'consumo por pieza' : 'consumo por caja'} debe ser mayor a 0 en "${categoria}"`);
+      if (!isEtiquetaPaqueteria && !isEtiquetaCaja && consumo <= 0) {
+        Alert.alert(
+          'Error',
+          `El ${
+            usaConsumoPorPieza ? 'consumo por pieza' : 'consumo por caja'
+          } debe ser mayor a 0 en "${categoria}"`
+        );
         return;
       }
-      if (data.cantidad_piezas_por_caja <= 0) {
-        Alert.alert('Error', `La cantidad de ${isEtiquetaPaqueteria ? 'etiquetas' : 'piezas'} por caja debe ser mayor a 0 en "${categoria}"`);
+      if (piezasPorCaja <= 0) {
+        Alert.alert(
+          'Error',
+          `La cantidad de ${isEtiquetaPaqueteria ? 'etiquetas' : 'piezas'} por caja debe ser mayor a 0 en "${categoria}"`
+        );
         return;
       }
     }
 
+    // VALIDACIÓN INSUMOS ADICIONALES
     for (const item of insumosAdicionalesValidos) {
       const isEtiquetaPaqueteria = item.categoria_insumo === 'Etiqueta Paquetería';
       const isEtiquetaCaja = item.categoria_insumo === 'Etiqueta Caja';
       const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(item.categoria_insumo);
-      
-      if (!item.codigo_insumo.trim()) {
+
+      const codigoInsumo = (item.codigo_insumo || '').trim();
+      const consumo = item.consumo_por_caja || 0;
+      const piezasPorCaja = item.cantidad_piezas_por_caja || 0;
+
+      if (!codigoInsumo) {
         Alert.alert('Error', `El código de insumo es requerido en un insumo adicional`);
         return;
       }
-      if (!isEtiquetaPaqueteria && !isEtiquetaCaja && item.consumo_por_caja <= 0) {
-        Alert.alert('Error', `El ${usaConsumoPorPieza ? 'consumo por pieza' : 'consumo por caja'} debe ser mayor a 0 en un insumo adicional`);
+      if (!isEtiquetaPaqueteria && !isEtiquetaCaja && consumo <= 0) {
+        Alert.alert(
+          'Error',
+          `El ${
+            usaConsumoPorPieza ? 'consumo por pieza' : 'consumo por caja'
+          } debe ser mayor a 0 en un insumo adicional`
+        );
         return;
       }
-      if (item.cantidad_piezas_por_caja <= 0) {
-        Alert.alert('Error', `La cantidad de ${isEtiquetaPaqueteria ? 'etiquetas' : 'piezas'} por caja debe ser mayor a 0 en un insumo adicional`);
+      if (piezasPorCaja <= 0) {
+        Alert.alert(
+          'Error',
+          `La cantidad de ${isEtiquetaPaqueteria ? 'etiquetas' : 'piezas'} por caja debe ser mayor a 0 en un insumo adicional`
+        );
         return;
       }
     }
@@ -508,14 +633,15 @@ export default function CreateRecordScreen() {
     const registrosParaGuardar: BOMFormData[] = [];
 
     categoriasConDatos.forEach(categoria => {
-      const data = categoriesData[categoria];
+      const data = categoriesData[categoria] || initialCategoryData;
+
       let realCategoria = categoria;
       if (categoria === 'Etiqueta Paquetería 2') {
         realCategoria = 'Etiqueta Paquetería';
       } else if (categoria === 'Etiqueta Caja 2') {
         realCategoria = 'Etiqueta Caja';
       }
-      
+
       const formData: BOMFormData = {
         codigo_sku: codigoSKU,
         descripcion_sku: descripcionSKU,
@@ -553,12 +679,14 @@ export default function CreateRecordScreen() {
 
     for (let i = 0; i < registrosParaGuardar.length; i++) {
       const registro = registrosParaGuardar[i];
-      console.log(`Guardando registro ${i + 1}/${registrosParaGuardar.length}: ${registro.categoria_insumo}`);
+      console.log(
+        `Guardando registro ${i + 1}/${registrosParaGuardar.length}: ${registro.categoria_insumo}`
+      );
       try {
         await addRecordAsync(registro);
         registrosGuardadosExitosamente++;
         console.log(`Registro ${i + 1} guardado exitosamente`);
-        
+
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`Error guardando registro ${i + 1}:`, error);
@@ -569,9 +697,9 @@ export default function CreateRecordScreen() {
         return;
       }
     }
-    
+
     console.log(`Todos los ${registrosGuardadosExitosamente} registros guardados exitosamente`);
-    
+
     Alert.alert(
       'Éxito',
       `${registrosGuardadosExitosamente} registro(s) creado(s) exitosamente`,
@@ -667,7 +795,8 @@ export default function CreateRecordScreen() {
             <View style={styles.sectionDivider}>
               <Text style={styles.sectionTitle}>Categorías de Insumo</Text>
               <Text style={styles.sectionSubtitle}>
-                Complete las categorías que necesite. Se creará un registro por cada categoría completada.
+                Complete las categorías que necesite. Se creará un registro por cada categoría
+                completada.
               </Text>
             </View>
 
@@ -679,202 +808,241 @@ export default function CreateRecordScreen() {
               </View>
             )}
 
-            {selectedProductInfo && visibleCategories.map(categoria => {
-              const categoryData = categoriesData[categoria] || { ...initialCategoryData };
-              const isEtiquetaPaqueteria2 = categoria === 'Etiqueta Paquetería 2';
-              const isEtiquetaCaja2 = categoria === 'Etiqueta Caja 2';
-              let realCategoria = categoria;
-              if (isEtiquetaPaqueteria2) {
-                realCategoria = 'Etiqueta Paquetería';
-              } else if (isEtiquetaCaja2) {
-                realCategoria = 'Etiqueta Caja';
-              }
-              const isEtiquetaPaqueteria = realCategoria === 'Etiqueta Paquetería';
-              const isEtiquetaCaja = realCategoria === 'Etiqueta Caja';
-              const isTapaFondoCarton = categoria === 'Tapa Carton Corrugado' || categoria === 'Fondo Carton Corrugado';
-              const isBolsaMaster = categoria === 'Bolsa Master';
-              const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(realCategoria);
-              const isCheckboxCategory = categoria === 'Fleje' || categoria === 'Grapa';
-              const isFilmAutoCalculated = (categoria === 'Film Tapa' || categoria === 'Film Fondo') && selectedProductInfo.tipo_empaque === 'THERMOPACK';
-              const isChecked = categoryData?.descripcion_insumo !== '';
-              
-              return (
-                <View key={categoria} style={styles.categorySection}>
-                  <View style={styles.categoryHeader}>
-                    <Text style={styles.categoryTitle}>{categoria}</Text>
-                    {isCheckboxCategory && (
-                      <Switch
-                        value={isChecked}
-                        onValueChange={(checked) => handleCheckboxToggle(categoria, checked)}
-                        trackColor={{ false: '#e2e8f0', true: CARNIC_COLORS.secondary }}
-                        thumbColor="#fff"
-                      />
-                    )}
-                  </View>
+            {selectedProductInfo &&
+              visibleCategories.map(categoria => {
+                const categoryData = categoriesData[categoria] || { ...initialCategoryData };
+                const isEtiquetaPaqueteria2 = categoria === 'Etiqueta Paquetería 2';
+                const isEtiquetaCaja2 = categoria === 'Etiqueta Caja 2';
+                let realCategoria = categoria;
+                if (isEtiquetaPaqueteria2) {
+                  realCategoria = 'Etiqueta Paquetería';
+                } else if (isEtiquetaCaja2) {
+                  realCategoria = 'Etiqueta Caja';
+                }
+                const isEtiquetaPaqueteria = realCategoria === 'Etiqueta Paquetería';
+                const isEtiquetaCaja = realCategoria === 'Etiqueta Caja';
+                const isTapaFondoCarton =
+                  categoria === 'Tapa Carton Corrugado' || categoria === 'Fondo Carton Corrugado';
+                const isBolsaMaster = categoria === 'Bolsa Master';
+                const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+                  realCategoria as any
+                );
+                const isCheckboxCategory = categoria === 'Fleje' || categoria === 'Grapa';
+                const isFilmAutoCalculated =
+                  (categoria === 'Film Tapa' || categoria === 'Film Fondo') &&
+                  selectedProductInfo.tipo_empaque === 'THERMOPACK';
+                const isChecked = categoryData?.descripcion_insumo !== '';
 
-                  {isCheckboxCategory && isChecked && (
-                    <View style={styles.autoFilledNotice}>
-                      <Text style={styles.autoFilledNoticeText}>
-                        ✓ Valor automático: {categoria === 'Fleje' ? '0.00045' : '0.00294'}
-                      </Text>
+                return (
+                  <View key={categoria} style={styles.categorySection}>
+                    <View style={styles.categoryHeader}>
+                      <Text style={styles.categoryTitle}>{categoria}</Text>
+                      {isCheckboxCategory && (
+                        <Switch
+                          value={isChecked}
+                          onValueChange={checked => handleCheckboxToggle(categoria, checked)}
+                          trackColor={{ false: '#e2e8f0', true: CARNIC_COLORS.secondary }}
+                          thumbColor="#fff"
+                        />
+                      )}
                     </View>
-                  )}
 
-                  {isFilmAutoCalculated && categoryData.descripcion_insumo && (
-                    <View style={styles.autoFilledNotice}>
-                      <Text style={styles.autoFilledNoticeText}>
-                        ✓ Calculado automáticamente según Size de Empaque ({selectedProductInfo.size_empaque})
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {!isCheckboxCategory && !isFilmAutoCalculated && (
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Descripción de Insumo</Text>
-                      <Text style={styles.hint}>
-                        {isEtiquetaPaqueteria2 ? 'Opcional: Segunda etiqueta de paquetería' : 
-                         isEtiquetaCaja2 ? 'Opcional: Segunda etiqueta de caja' : 
-                         'Seleccione del catálogo filtrado por categoría'}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.dropdown}
-                        onPress={() => {
-                          setSelectedCategory(realCategoria);
-                          setTargetCategoryForModal(categoria);
-                          setShowInsumoModal(true);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dropdownText,
-                            !categoryData.descripcion_insumo && styles.placeholderText,
-                          ]}
-                        >
-                          {categoryData.descripcion_insumo || 'Seleccione un insumo'}
+                    {isCheckboxCategory && isChecked && (
+                      <View style={styles.autoFilledNotice}>
+                        <Text style={styles.autoFilledNoticeText}>
+                          ✓ Valor automático: {categoria === 'Fleje' ? '0.00045' : '0.00294'}
                         </Text>
-                        <ChevronDown size={20} color={CARNIC_COLORS.gray[500]} />
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                      </View>
+                    )}
 
-                  {(isTapaFondoCarton || isBolsaMaster) && categoryData.descripcion_insumo && (
-                    <View style={styles.autoFilledNotice}>
-                      <Text style={styles.autoFilledNoticeText}>
-                        ✓ Consumo por caja fijo: 1 unidad
-                      </Text>
-                    </View>
-                  )}
+                    {isFilmAutoCalculated && categoryData.descripcion_insumo && (
+                      <View style={styles.autoFilledNotice}>
+                        <Text style={styles.autoFilledNoticeText}>
+                          ✓ Calculado automáticamente según Size de Empaque (
+                          {selectedProductInfo.size_empaque})
+                        </Text>
+                      </View>
+                    )}
 
-                  {isEtiquetaCaja && categoryData.descripcion_insumo && (
-                    <View style={styles.autoFilledNotice}>
-                      <Text style={styles.autoFilledNoticeText}>
-                        ✓ Consumo por caja fijo: 2 unidades
-                      </Text>
-                    </View>
-                  )}
-
-                  {!isCheckboxCategory && categoryData.descripcion_insumo && (
-                    <>
+                    {!isCheckboxCategory && !isFilmAutoCalculated && (
                       <View style={styles.formGroup}>
-                        <Text style={styles.label}>Código de Insumo</Text>
-                        <View style={styles.disabledInput}>
-                          <Text style={styles.disabledInputText}>
-                            {categoryData.codigo_insumo || 'Se asigna automáticamente'}
+                        <Text style={styles.label}>Descripción de Insumo</Text>
+                        <Text style={styles.hint}>
+                          {isEtiquetaPaqueteria2
+                            ? 'Opcional: Segunda etiqueta de paquetería'
+                            : isEtiquetaCaja2
+                            ? 'Opcional: Segunda etiqueta de caja'
+                            : 'Seleccione del catálogo filtrado por categoría'}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.dropdown}
+                          onPress={() => {
+                            setSelectedCategory(realCategoria);
+                            setTargetCategoryForModal(categoria);
+                            setShowInsumoModal(true);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownText,
+                              !categoryData.descripcion_insumo && styles.placeholderText,
+                            ]}
+                          >
+                            {categoryData.descripcion_insumo || 'Seleccione un insumo'}
+                          </Text>
+                          <ChevronDown size={20} color={CARNIC_COLORS.gray[500]} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {(isTapaFondoCarton || isBolsaMaster) &&
+                      categoryData.descripcion_insumo && (
+                        <View style={styles.autoFilledNotice}>
+                          <Text style={styles.autoFilledNoticeText}>
+                            ✓ Consumo por caja fijo: 1 unidad
                           </Text>
                         </View>
-                      </View>
+                      )}
 
-                      {isEtiquetaPaqueteria && (
+                    {isEtiquetaCaja && categoryData.descripcion_insumo && (
+                      <View style={styles.autoFilledNotice}>
+                        <Text style={styles.autoFilledNoticeText}>
+                          ✓ Consumo por caja fijo: 2 unidades
+                        </Text>
+                      </View>
+                    )}
+
+                    {!isCheckboxCategory && categoryData.descripcion_insumo && (
+                      <>
                         <View style={styles.formGroup}>
-                          <Text style={styles.label}>Cantidad de Etiquetas por Caja</Text>
+                          <Text style={styles.label}>Código de Insumo</Text>
                           <View style={styles.disabledInput}>
                             <Text style={styles.disabledInputText}>
-                              {categoryData.cantidad_piezas_por_caja || 'Tomado del producto'}
+                              {categoryData.codigo_insumo || 'Se asigna automáticamente'}
                             </Text>
                           </View>
-                          <Text style={styles.hint}>
-                            Tomado automáticamente de la cantidad de paquetes por caja del producto
-                          </Text>
                         </View>
-                      )}
 
-
-
-                      {!isEtiquetaPaqueteria && !isEtiquetaCaja && usaConsumoPorPieza && !isFilmAutoCalculated && (
-                        <View style={styles.formGroup}>
-                          <Text style={styles.label}>Cantidad de Piezas por Caja</Text>
-                          <Text style={styles.hint}>Número de piezas que contiene cada caja</Text>
-                          <TextInput
-                            style={styles.input}
-                            placeholder="0"
-                            value={categoryData.cantidad_piezas_por_caja > 0 ? String(categoryData.cantidad_piezas_por_caja) : ''}
-                            onChangeText={value => {
-                              const num = parseFloat(value) || 0;
-                              updateCategoryField(categoria, 'cantidad_piezas_por_caja', num);
-                            }}
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
-                      )}
-
-                      {!isEtiquetaPaqueteria && !isEtiquetaCaja && !isFilmAutoCalculated && !isTapaFondoCarton && !isBolsaMaster && (
-                        <View style={styles.formGroup}>
-                          <Text style={styles.label}>{usaConsumoPorPieza ? 'Consumo por Pieza' : 'Consumo por Caja'}</Text>
-                          <Text style={styles.hint}>
-                            {usaConsumoPorPieza 
-                              ? 'Cantidad que consume cada pieza'
-                              : 'Cantidad que consume cada caja del SKU'}
-                          </Text>
-                          <TextInput
-                            style={styles.input}
-                            placeholder="0"
-                            value={categoryData.consumo_por_caja > 0 ? String(categoryData.consumo_por_caja) : ''}
-                            onChangeText={value => {
-                              const num = parseFloat(value) || 0;
-                              updateCategoryField(categoria, 'consumo_por_caja', num);
-                            }}
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
-                      )}
-
-                      <View style={styles.formGroup}>
-                        <Text style={styles.label}>Cantidad Requerida (Calculada)</Text>
-                        <View style={styles.calculatedField}>
-                          <Text style={styles.calculatedValue}>
-                            {categoryData.cantidad_requerida > 0
-                              ? (categoryData.unidad_medida === 'BOLSAS' || categoryData.unidad_medida === 'UND'
-                                  ? Math.round(categoryData.cantidad_requerida).toString()
-                                  : categoryData.cantidad_requerida.toFixed(6))
-                              : (categoryData.unidad_medida === 'BOLSAS' || categoryData.unidad_medida === 'UND' ? '0' : '0.000000')}
-                          </Text>
-                          {categoryData.selectedInsumo && (
-                            <Text style={styles.calculatedHint}>
-                              {isEtiquetaPaqueteria
-                                ? `= ${categoryData.cantidad_piezas_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`
-                                : isEtiquetaCaja
-                                ? `= ${categoryData.consumo_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`
-                                : usaConsumoPorPieza
-                                ? `= (${categoryData.cantidad_piezas_por_caja} × ${categoryData.consumo_por_caja}) / ${categoryData.selectedInsumo.contenido_por_unidad}`
-                                : `= ${categoryData.consumo_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`}
+                        {isEtiquetaPaqueteria && (
+                          <View style={styles.formGroup}>
+                            <Text style={styles.label}>Cantidad de Etiquetas por Caja</Text>
+                            <View style={styles.disabledInput}>
+                              <Text style={styles.disabledInputText}>
+                                {categoryData.cantidad_piezas_por_caja ||
+                                  'Tomado del producto'}
+                              </Text>
+                            </View>
+                            <Text style={styles.hint}>
+                              Tomado automáticamente de la cantidad de paquetes por caja del
+                              producto
                             </Text>
-                          )}
-                        </View>
-                      </View>
+                          </View>
+                        )}
 
-                      <View style={styles.formGroup}>
-                        <Text style={styles.label}>Unidad de Medida</Text>
-                        <View style={styles.disabledInput}>
-                          <Text style={styles.disabledInputText}>
-                            {categoryData.unidad_medida || 'Se asigna automáticamente'}
-                          </Text>
+                        {!isEtiquetaPaqueteria &&
+                          !isEtiquetaCaja &&
+                          usaConsumoPorPieza &&
+                          !isFilmAutoCalculated && (
+                            <View style={styles.formGroup}>
+                              <Text style={styles.label}>Cantidad de Piezas por Caja</Text>
+                              <Text style={styles.hint}>
+                                Número de piezas que contiene cada caja
+                              </Text>
+                              <TextInput
+                                style={styles.input}
+                                placeholder="0"
+                                value={
+                                  categoryData.cantidad_piezas_por_caja > 0
+                                    ? String(categoryData.cantidad_piezas_por_caja)
+                                    : ''
+                                }
+                                onChangeText={value => {
+                                  const num = parseFloat(value) || 0;
+                                  updateCategoryField(
+                                    categoria,
+                                    'cantidad_piezas_por_caja',
+                                    num
+                                  );
+                                }}
+                                keyboardType="decimal-pad"
+                              />
+                            </View>
+                          )}
+
+                        {!isEtiquetaPaqueteria &&
+                          !isEtiquetaCaja &&
+                          !isFilmAutoCalculated &&
+                          !isTapaFondoCarton &&
+                          !isBolsaMaster && (
+                            <View style={styles.formGroup}>
+                              <Text style={styles.label}>
+                                {usaConsumoPorPieza ? 'Consumo por Pieza' : 'Consumo por Caja'}
+                              </Text>
+                              <Text style={styles.hint}>
+                                {usaConsumoPorPieza
+                                  ? 'Cantidad que consume cada pieza'
+                                  : 'Cantidad que consume cada caja del SKU'}
+                              </Text>
+                              <TextInput
+                                style={styles.input}
+                                placeholder="0"
+                                value={
+                                  categoryData.consumo_por_caja > 0
+                                    ? String(categoryData.consumo_por_caja)
+                                    : ''
+                                }
+                                onChangeText={value => {
+                                  const num = parseFloat(value) || 0;
+                                  updateCategoryField(categoria, 'consumo_por_caja', num);
+                                }}
+                                keyboardType="decimal-pad"
+                              />
+                            </View>
+                          )}
+
+                        <View style={styles.formGroup}>
+                          <Text style={styles.label}>Cantidad Requerida (Calculada)</Text>
+                          <View style={styles.calculatedField}>
+                            <Text style={styles.calculatedValue}>
+                              {categoryData.cantidad_requerida > 0
+                                ? categoryData.unidad_medida === 'BOLSAS' ||
+                                  categoryData.unidad_medida === 'UND'
+                                  ? Math.round(
+                                      categoryData.cantidad_requerida
+                                    ).toString()
+                                  : categoryData.cantidad_requerida.toFixed(6)
+                                : categoryData.unidad_medida === 'BOLSAS' ||
+                                  categoryData.unidad_medida === 'UND'
+                                ? '0'
+                                : '0.000000'}
+                            </Text>
+                            {categoryData.selectedInsumo && (
+                              <Text style={styles.calculatedHint}>
+                                {isEtiquetaPaqueteria
+                                  ? `= ${categoryData.cantidad_piezas_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`
+                                  : isEtiquetaCaja
+                                  ? `= ${categoryData.consumo_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`
+                                  : usaConsumoPorPieza
+                                  ? `= (${categoryData.cantidad_piezas_por_caja} × ${categoryData.consumo_por_caja}) / ${categoryData.selectedInsumo.contenido_por_unidad}`
+                                  : `= ${categoryData.consumo_por_caja} / ${categoryData.selectedInsumo.contenido_por_unidad}`}
+                              </Text>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    </>
-                  )}
-                </View>
-              );
-            })}
+
+                        <View style={styles.formGroup}>
+                          <Text style={styles.label}>Unidad de Medida</Text>
+                          <View style={styles.disabledInput}>
+                            <Text style={styles.disabledInputText}>
+                              {categoryData.unidad_medida || 'Se asigna automáticamente'}
+                            </Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
 
             {selectedProductInfo && (
               <>
@@ -888,14 +1056,20 @@ export default function CreateRecordScreen() {
                 {additionalInsumos.map((item, index) => {
                   const isEtiquetaPaqueteria = item.categoria_insumo === 'Etiqueta Paquetería';
                   const isEtiquetaCaja = item.categoria_insumo === 'Etiqueta Caja';
-                  const isTapaFondoCarton = item.categoria_insumo === 'Tapa Carton Corrugado' || item.categoria_insumo === 'Fondo Carton Corrugado';
+                  const isTapaFondoCarton =
+                    item.categoria_insumo === 'Tapa Carton Corrugado' ||
+                    item.categoria_insumo === 'Fondo Carton Corrugado';
                   const isBolsaMaster = item.categoria_insumo === 'Bolsa Master';
-                  const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(item.categoria_insumo);
-                  
+                  const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+                    item.categoria_insumo
+                  );
+
                   return (
                     <View key={item.id} style={styles.additionalInsumoSection}>
                       <View style={styles.additionalInsumoHeader}>
-                        <Text style={styles.additionalInsumoTitle}>Insumo Adicional #{index + 1}</Text>
+                        <Text style={styles.additionalInsumoTitle}>
+                          Insumo Adicional #{index + 1}
+                        </Text>
                         <TouchableOpacity
                           onPress={() => removeAdditionalInsumo(item.id)}
                           style={styles.removeButton}
@@ -985,54 +1159,82 @@ export default function CreateRecordScreen() {
                                     </Text>
                                   </View>
                                   <Text style={styles.hint}>
-                                    Tomado automáticamente de la cantidad de paquetes por caja del producto
+                                    Tomado automáticamente de la cantidad de paquetes por caja del
+                                    producto
                                   </Text>
                                 </View>
                               )}
 
+                              {!isEtiquetaPaqueteria &&
+                                !isEtiquetaCaja &&
+                                usaConsumoPorPieza && (
+                                  <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Cantidad de Piezas por Caja *</Text>
+                                    <TextInput
+                                      style={styles.input}
+                                      placeholder="0"
+                                      value={
+                                        item.cantidad_piezas_por_caja > 0
+                                          ? String(item.cantidad_piezas_por_caja)
+                                          : ''
+                                      }
+                                      onChangeText={value => {
+                                        const num = parseFloat(value) || 0;
+                                        updateAdditionalInsumo(
+                                          item.id,
+                                          'cantidad_piezas_por_caja',
+                                          num
+                                        );
+                                      }}
+                                      keyboardType="decimal-pad"
+                                    />
+                                  </View>
+                                )}
 
-
-                              {!isEtiquetaPaqueteria && !isEtiquetaCaja && usaConsumoPorPieza && (
-                                <View style={styles.formGroup}>
-                                  <Text style={styles.label}>Cantidad de Piezas por Caja *</Text>
-                                  <TextInput
-                                    style={styles.input}
-                                    placeholder="0"
-                                    value={item.cantidad_piezas_por_caja > 0 ? String(item.cantidad_piezas_por_caja) : ''}
-                                    onChangeText={value => {
-                                      const num = parseFloat(value) || 0;
-                                      updateAdditionalInsumo(item.id, 'cantidad_piezas_por_caja', num);
-                                    }}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              )}
-
-                              {!isEtiquetaPaqueteria && !isEtiquetaCaja && !isTapaFondoCarton && !isBolsaMaster && (
-                                <View style={styles.formGroup}>
-                                  <Text style={styles.label}>{usaConsumoPorPieza ? 'Consumo por Pieza *' : 'Consumo por Caja *'}</Text>
-                                  <TextInput
-                                    style={styles.input}
-                                    placeholder="0"
-                                    value={item.consumo_por_caja > 0 ? String(item.consumo_por_caja) : ''}
-                                    onChangeText={value => {
-                                      const num = parseFloat(value) || 0;
-                                      updateAdditionalInsumo(item.id, 'consumo_por_caja', num);
-                                    }}
-                                    keyboardType="decimal-pad"
-                                  />
-                                </View>
-                              )}
+                              {!isEtiquetaPaqueteria &&
+                                !isEtiquetaCaja &&
+                                !isTapaFondoCarton &&
+                                !isBolsaMaster && (
+                                  <View style={styles.formGroup}>
+                                    <Text style={styles.label}>
+                                      {usaConsumoPorPieza
+                                        ? 'Consumo por Pieza *'
+                                        : 'Consumo por Caja *'}
+                                    </Text>
+                                    <TextInput
+                                      style={styles.input}
+                                      placeholder="0"
+                                      value={
+                                        item.consumo_por_caja > 0
+                                          ? String(item.consumo_por_caja)
+                                          : ''
+                                      }
+                                      onChangeText={value => {
+                                        const num = parseFloat(value) || 0;
+                                        updateAdditionalInsumo(
+                                          item.id,
+                                          'consumo_por_caja',
+                                          num
+                                        );
+                                      }}
+                                      keyboardType="decimal-pad"
+                                    />
+                                  </View>
+                                )}
 
                               <View style={styles.formGroup}>
                                 <Text style={styles.label}>Cantidad Requerida (Calculada)</Text>
                                 <View style={styles.calculatedField}>
                                   <Text style={styles.calculatedValue}>
                                     {item.cantidad_requerida > 0
-                                      ? (item.unidad_medida === 'BOLSAS' || item.unidad_medida === 'UND'
-                                          ? Math.round(item.cantidad_requerida).toString()
-                                          : item.cantidad_requerida.toFixed(6))
-                                      : (item.unidad_medida === 'BOLSAS' || item.unidad_medida === 'UND' ? '0' : '0.000000')}
+                                      ? item.unidad_medida === 'BOLSAS' ||
+                                        item.unidad_medida === 'UND'
+                                        ? Math.round(item.cantidad_requerida).toString()
+                                        : item.cantidad_requerida.toFixed(6)
+                                      : item.unidad_medida === 'BOLSAS' ||
+                                        item.unidad_medida === 'UND'
+                                      ? '0'
+                                      : '0.000000'}
                                   </Text>
                                   {item.selectedInsumo && (
                                     <Text style={styles.calculatedHint}>
@@ -1055,10 +1257,7 @@ export default function CreateRecordScreen() {
                   );
                 })}
 
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={addAdditionalInsumo}
-                >
+                <TouchableOpacity style={styles.addButton} onPress={addAdditionalInsumo}>
                   <Plus size={20} color={CARNIC_COLORS.secondary} />
                   <Text style={styles.addButtonText}>Agregar Insumo Adicional</Text>
                 </TouchableOpacity>
@@ -1080,6 +1279,7 @@ export default function CreateRecordScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* MODAL INSUMOS */}
       <Modal
         visible={showInsumoModal}
         transparent={true}
@@ -1093,10 +1293,12 @@ export default function CreateRecordScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccione Insumo</Text>
-              <TouchableOpacity onPress={() => {
-                setShowInsumoModal(false);
-                setInsumoSearchText('');
-              }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowInsumoModal(false);
+                  setInsumoSearchText('');
+                }}
+              >
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -1114,7 +1316,7 @@ export default function CreateRecordScreen() {
               {filteredInsumos.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
-                    {insumoSearchText.trim() 
+                    {insumoSearchText.trim()
                       ? 'No se encontraron insumos con ese criterio'
                       : 'No hay insumos para esta categoría'}
                   </Text>
@@ -1123,23 +1325,28 @@ export default function CreateRecordScreen() {
                 filteredInsumos.map((insumo, index) => {
                   let isSelected = false;
                   if (additionalInsumoModalId) {
-                    const additionalItem = additionalInsumos.find(item => item.id === additionalInsumoModalId);
-                    isSelected = additionalItem?.codigo_insumo === insumo.codigo && additionalItem?.descripcion_insumo === insumo.descripcion;
+                    const additionalItem = additionalInsumos.find(
+                      item => item.id === additionalInsumoModalId
+                    );
+                    isSelected =
+                      additionalItem?.codigo_insumo === insumo.codigo &&
+                      additionalItem?.descripcion_insumo === insumo.descripcion;
                   } else if (targetCategoryForModal) {
                     const categoryData = categoriesData[targetCategoryForModal];
                     if (categoryData) {
-                      isSelected = categoryData.codigo_insumo === insumo.codigo && categoryData.descripcion_insumo === insumo.descripcion;
+                      isSelected =
+                        categoryData.codigo_insumo === insumo.codigo &&
+                        categoryData.descripcion_insumo === insumo.descripcion;
                     }
                   }
-                  
+
                   return (
                     <TouchableOpacity
                       key={`${insumo.codigo}-${insumo.descripcion}-${index}`}
-                      style={[
-                        styles.modalItem,
-                        isSelected && styles.modalItemSelected,
-                      ]}
-                      onPress={() => handleSelectInsumo(insumo, targetCategoryForModal || selectedCategory)}
+                      style={[styles.modalItem, isSelected && styles.modalItemSelected]}
+                      onPress={() =>
+                        handleSelectInsumo(insumo, targetCategoryForModal || selectedCategory)
+                      }
                     >
                       <Text
                         style={[
@@ -1150,7 +1357,8 @@ export default function CreateRecordScreen() {
                         {insumo.descripcion}
                       </Text>
                       <Text style={styles.modalItemSubtext}>
-                        Código: {insumo.codigo} | Contenido: {insumo.contenido_por_unidad} {insumo.unidad_medida}
+                        Código: {insumo.codigo} | Contenido: {insumo.contenido_por_unidad}{' '}
+                        {insumo.unidad_medida}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1161,6 +1369,7 @@ export default function CreateRecordScreen() {
         </View>
       </Modal>
 
+      {/* MODAL CATEGORÍAS PARA INSUMOS ADICIONALES */}
       <Modal
         visible={showCategoryModal}
         transparent={true}
@@ -1174,10 +1383,12 @@ export default function CreateRecordScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccione Categoría</Text>
-              <TouchableOpacity onPress={() => {
-                setShowCategoryModal(false);
-                setCategoryModalInsumoId(null);
-              }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowCategoryModal(false);
+                  setCategoryModalInsumoId(null);
+                }}
+              >
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -1424,7 +1635,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0f172a',
   },
-
   suggestions: {
     marginTop: 8,
     backgroundColor: '#fff',
