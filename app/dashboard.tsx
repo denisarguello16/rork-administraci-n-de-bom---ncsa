@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FilePlus, RefreshCw, LogOut, Package, Info } from 'lucide-react-native';
 import { useBOM } from '@/context/BOMContext';
 import { CARNIC_COLORS } from '@/constants/colors';
+import { BOMRecord } from '@/types/bom';
+import { ProductInfo } from '@/types/product';
 
 import { useProduct } from '@/context/ProductContext';
 
@@ -11,6 +13,17 @@ export default function DashboardScreen() {
   const { currentUser, logout, records } = useBOM();
   const { products } = useProduct();
   const router = useRouter();
+
+  const validRecords = records.filter((record: any): record is BOMRecord => 
+    record && 
+    typeof record === 'object' && 
+    record.descripcion_insumo
+  );
+  
+  const validProducts = products.filter((product: any): product is ProductInfo => 
+    product && 
+    typeof product === 'object'
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -47,12 +60,12 @@ export default function DashboardScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Package size={24} color="#fff" />
-            <Text style={styles.statNumber}>{records.length}</Text>
+            <Text style={styles.statNumber}>{validRecords.length}</Text>
             <Text style={styles.statLabel}>Registros BOM</Text>
           </View>
           <View style={styles.statCard}>
             <Info size={24} color="#fff" />
-            <Text style={styles.statNumber}>{products.length}</Text>
+            <Text style={styles.statNumber}>{validProducts.length}</Text>
             <Text style={styles.statLabel}>Productos</Text>
           </View>
         </View>

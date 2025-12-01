@@ -239,8 +239,21 @@ export default function UpdateRecordsScreen() {
         ) : (
           <ScrollView style={styles.recordsList} contentContainerStyle={styles.recordsContent}>
             {filteredRecords.map((record: BOMRecord) => {
-              if (!record || !record.descripcion_insumo) {
-                console.error('Registro inválido en render:', record);
+              try {
+                if (!record || typeof record !== 'object') {
+                  console.error('Registro inválido (null o no objeto) en render:', record);
+                  return null;
+                }
+                if (!record.id) {
+                  console.error('Registro sin ID en render:', record);
+                  return null;
+                }
+                if (!record.descripcion_insumo || typeof record.descripcion_insumo !== 'string') {
+                  console.error('Registro sin descripcion_insumo válida en render:', record);
+                  return null;
+                }
+              } catch (error) {
+                console.error('Error validando registro en render:', error, record);
                 return null;
               }
               return (

@@ -35,19 +35,32 @@ export const [BOMContext, useBOM] = createContextHook(() => {
 
         if (result.success && result.data) {
           const validRecords = result.data.filter((record: any) => {
-            if (!record) {
-              console.log('Registro null/undefined encontrado');
+            try {
+              if (!record || typeof record !== 'object') {
+                console.log('Registro null/undefined o no es objeto:', record);
+                return false;
+              }
+              if (!record.descripcion_insumo || typeof record.descripcion_insumo !== 'string' || record.descripcion_insumo.trim() === '') {
+                console.log('Registro sin descripcion_insumo válida:', JSON.stringify(record));
+                return false;
+              }
+              if (!record.codigo_sku || typeof record.codigo_sku !== 'string' || record.codigo_sku.trim() === '') {
+                console.log('Registro sin codigo_sku válido:', JSON.stringify(record));
+                return false;
+              }
+              if (!record.descripcion_sku || typeof record.descripcion_sku !== 'string' || record.descripcion_sku.trim() === '') {
+                console.log('Registro sin descripcion_sku válida:', JSON.stringify(record));
+                return false;
+              }
+              if (!record.categoria_insumo || typeof record.categoria_insumo !== 'string' || record.categoria_insumo.trim() === '') {
+                console.log('Registro sin categoria_insumo válida:', JSON.stringify(record));
+                return false;
+              }
+              return true;
+            } catch (error) {
+              console.error('Error al validar registro:', error, record);
               return false;
             }
-            if (!record.descripcion_insumo || record.descripcion_insumo === '') {
-              console.log('Registro sin descripcion_insumo:', JSON.stringify(record));
-              return false;
-            }
-            if (!record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
-              console.log('Registro con campos requeridos faltantes:', JSON.stringify(record));
-              return false;
-            }
-            return true;
           });
           
           console.log(`Registros válidos cargados desde Google Sheets: ${validRecords.length}`);
@@ -58,24 +71,52 @@ export const [BOMContext, useBOM] = createContextHook(() => {
         console.log('No se pudieron cargar registros de Google Sheets, usando cache local');
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         const cachedRecords = stored ? JSON.parse(stored) : [];
-        return cachedRecords.filter((record: any) => 
-          record && 
-          record.descripcion_insumo && 
-          record.codigo_sku && 
-          record.descripcion_sku && 
-          record.categoria_insumo
-        );
+        return cachedRecords.filter((record: any) => {
+          try {
+            return record && 
+              typeof record === 'object' &&
+              record.descripcion_insumo && 
+              typeof record.descripcion_insumo === 'string' &&
+              record.descripcion_insumo.trim() !== '' &&
+              record.codigo_sku && 
+              typeof record.codigo_sku === 'string' &&
+              record.codigo_sku.trim() !== '' &&
+              record.descripcion_sku && 
+              typeof record.descripcion_sku === 'string' &&
+              record.descripcion_sku.trim() !== '' &&
+              record.categoria_insumo &&
+              typeof record.categoria_insumo === 'string' &&
+              record.categoria_insumo.trim() !== '';
+          } catch (error) {
+            console.error('Error filtrando registro del cache:', error);
+            return false;
+          }
+        });
       } catch (error) {
         console.error('Error al cargar desde Google Sheets, usando cache local:', error);
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         const cachedRecords = stored ? JSON.parse(stored) : [];
-        return cachedRecords.filter((record: any) => 
-          record && 
-          record.descripcion_insumo && 
-          record.codigo_sku && 
-          record.descripcion_sku && 
-          record.categoria_insumo
-        );
+        return cachedRecords.filter((record: any) => {
+          try {
+            return record && 
+              typeof record === 'object' &&
+              record.descripcion_insumo && 
+              typeof record.descripcion_insumo === 'string' &&
+              record.descripcion_insumo.trim() !== '' &&
+              record.codigo_sku && 
+              typeof record.codigo_sku === 'string' &&
+              record.codigo_sku.trim() !== '' &&
+              record.descripcion_sku && 
+              typeof record.descripcion_sku === 'string' &&
+              record.descripcion_sku.trim() !== '' &&
+              record.categoria_insumo &&
+              typeof record.categoria_insumo === 'string' &&
+              record.categoria_insumo.trim() !== '';
+          } catch (error) {
+            console.error('Error filtrando registro del cache en catch:', error);
+            return false;
+          }
+        });
       }
     },
     refetchInterval: 30000,
