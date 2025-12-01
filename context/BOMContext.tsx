@@ -112,59 +112,54 @@ export const [BOMContext, useBOM] = createContextHook(() => {
   });
 
   // Crear registro
-  const addRecordMutation = useMutation({
-    mutationFn: async (data: BOMFormData) => {
-      const newRecord: BOMRecord = {
-        ...data,
-        id:
-          Date.now().toString() +
-          '_' +
-          Math.random().toString(36).substr(2, 9),
-        version: 0,
-        createdAt: new Date().toISOString(),
-      };
+const addRecordMutation = useMutation({
+  mutationFn: async (data: BOMFormData) => {
+    const newRecord: BOMRecord = {
+      ...data,
+      id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+      version: 0,
+      createdAt: new Date().toISOString(),
+    };
 
-      console.log('Enviando registro a Google Sheets:', newRecord);
+    console.log('Enviando registro a Google Sheets:', newRecord);
 
-      try {
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'addBOMRecord',
-            record: newRecord,
-          }),
-        });
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'addBOMRecord',
+          record: newRecord,   // 🔴 IMPORTANTE: la clave DEBE ser "record"
+        }),
+      });
 
-        const result = await response.json();
-        console.log('Respuesta de Google Sheets (addBOMRecord):', result);
+      const result = await response.json();
+      console.log('Respuesta de Google Sheets:', result);
 
-        if (!result.success) {
-          console.error(
-            'Error devuelto por Apps Script (addBOMRecord):',
-            result.error
-          );
-          throw new Error('Error al guardar en Google Sheets');
-        }
-
-        const records: BOMRecord[] = recordsQuery.data || [];
-        const updated = sanitizeRecords([...records, newRecord]);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        return updated;
-      } catch (error) {
-        console.error('Error al enviar a Google Sheets (addRecord):', error);
-        throw error;
+      if (!result.success) {
+        // Aquí verás el mensaje que devuelve el Apps Script
+        throw new Error(result.error || 'Error al guardar en Google Sheets');
       }
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['bomRecords'], updated);
-    },
-    onError: (error) => {
-      console.error('Error en addRecordMutation:', error);
-    },
-  });
+
+      const records: BOMRecord[] = recordsQuery.data || [];
+      const updated = [...records, newRecord];
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (error) {
+      console.error('Error al enviar a Google Sheets:', error);
+      throw error;
+    }
+  },
+  onSuccess: (updated) => {
+    queryClient.setQueryData(['bomRecords'], updated);
+  },
+  onError: (error) => {
+    console.error('Error en addRecordMutation:', error);
+  },
+});
+
 
   // Actualizar registro
   const updateRecordMutation = useMutation({
