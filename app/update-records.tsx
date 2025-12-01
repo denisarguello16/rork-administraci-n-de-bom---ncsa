@@ -12,11 +12,23 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Search, Edit, Trash2, Package, X, ChevronDown } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Search,
+  Edit,
+  Trash2,
+  Package,
+  X,
+  ChevronDown,
+} from 'lucide-react-native';
 import { useBOM } from '@/context/BOMContext';
 import { BOMRecord, BOMFormData } from '@/types/bom';
 import { CARNIC_COLORS } from '@/constants/colors';
-import { CATEGORIAS_INSUMO, CATALOGO_INSUMOS, Insumo } from '@/constants/catalogs';
+import {
+  CATEGORIAS_INSUMO,
+  CATALOGO_INSUMOS,
+  Insumo,
+} from '@/constants/catalogs';
 
 const CATEGORIAS_CON_CONSUMO_POR_PIEZA = [
   'Etiqueta Caja',
@@ -28,9 +40,38 @@ const CATEGORIAS_CON_CONSUMO_POR_PIEZA = [
   'Papel Encerado',
 ];
 
+// ---------- TYPE GUARD PARA REGISTROS ----------
+
+const isValidBOMRecord = (record: any): record is BOMRecord => {
+  try {
+    if (!record || typeof record !== 'object') return false;
+
+    const {
+      descripcion_insumo,
+      codigo_sku,
+      descripcion_sku,
+      categoria_insumo,
+    } = record as any;
+
+    if (typeof descripcion_insumo !== 'string' || !descripcion_insumo.trim())
+      return false;
+    if (typeof codigo_sku !== 'string' || !codigo_sku.trim()) return false;
+    if (typeof descripcion_sku !== 'string' || !descripcion_sku.trim())
+      return false;
+    if (typeof categoria_insumo !== 'string' || !categoria_insumo.trim())
+      return false;
+
+    return true;
+  } catch (error) {
+    console.error('Error validando BOMRecord en pantalla:', error, record);
+    return false;
+  }
+};
+
 export default function UpdateRecordsScreen() {
   const router = useRouter();
   const { records, updateRecord, deleteRecord, isUpdatingRecord } = useBOM();
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<BOMRecord | null>(null);
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
@@ -39,53 +80,27 @@ export default function UpdateRecordsScreen() {
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
 
-  // Aseguramos que siempre trabajamos con un array
-  const safeRecords: any[] = Array.isArray(records) ? records : [];
+  const safeRecords: BOMRecord[] = Array.isArray(records)
+    ? records.filter(isValidBOMRecord)
+    : [];
 
-  const filteredRecords = safeRecords
-    .filter((record: any): record is BOMRecord => {
-      // Blindaje total contra undefined / null / tipos raros
-      if (!record || typeof record !== 'object') {
-        console.log('Registro inválido (null, undefined o no objeto):', record);
-        return false;
-      }
-
-      const {
-        descripcion_insumo,
-        codigo_sku,
-        descripcion_sku,
-        categoria_insumo,
-      } = record as any;
-
-      if (
-        typeof descripcion_insumo !== 'string' ||
-        typeof codigo_sku !== 'string' ||
-        typeof descripcion_sku !== 'string' ||
-        typeof categoria_insumo !== 'string'
-      ) {
-        console.log('Registro con datos incompletos o tipos inválidos:', record);
-        return false;
-      }
-
-      return true;
-    })
-    .filter((record: BOMRecord) => {
-      try {
-        const searchLower = searchQuery.toLowerCase();
-        return (
-          (record.codigo_sku || '').toLowerCase().includes(searchLower) ||
-          (record.descripcion_sku || '').toLowerCase().includes(searchLower) ||
-          (record.categoria_insumo || '').toLowerCase().includes(searchLower) ||
-          (record.descripcion_insumo || '').toLowerCase().includes(searchLower)
-        );
-      } catch (error) {
-        console.error('Error filtrando registro:', error, record);
-        return false;
-      }
-    });
+  const filteredRecords = safeRecords.filter((record) => {
+    try {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        record.codigo_sku.toLowerCase().includes(searchLower) ||
+        record.descripcion_sku.toLowerCase().includes(searchLower) ||
+        record.categoria_insumo.toLowerCase().includes(searchLower) ||
+        record.descripcion_insumo.toLowerCase().includes(searchLower)
+      );
+    } catch (error) {
+      console.error('Error filtrando registro:', error, record);
+      return false;
+    }
+  });
 
   const filteredInsumos = CATALOGO_INSUMOS.filter(
-    insumo => insumo.categoria === formData.categoria_insumo
+    (insumo) => insumo.categoria === formData.categoria_insumo
   );
 
   const handleSelectCategoria = (categoria: string) => {
@@ -104,34 +119,53 @@ export default function UpdateRecordsScreen() {
     setShowInsumoModal(false);
   };
 
-  const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(formData.categoria_insumo || '');
+  const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+    formData.categoria_insumo || ''
+  );
 
   useEffect(() => {
     if (selectedInsumo) {
       let cantidadCalculada = 0;
 
       if (usaConsumoPorPieza) {
-        if ((formData.cantidad_piezas_por_caja || 0) > 0 && (formData.consumo_por_caja || 0) > 0) {
+        if (
+          (formData.cantidad_piezas_por_caja || 0) > 0 &&
+          (formData.consumo_por_caja || 0) > 0
+        ) {
           cantidadCalculada =
-            ((formData.cantidad_piezas_por_caja || 0) * (formData.consumo_por_caja || 0)) /
+            ((formData.cantidad_piezas_por_caja || 0) *
+              (formData.consumo_por_caja || 0)) /
             selectedInsumo.contenido_por_unidad;
         }
       } else {
         if ((formData.consumo_por_caja || 0) > 0) {
-          cantidadCalculada = (formData.consumo_por_caja || 0) / selectedInsumo.contenido_por_unidad;
+          cantidadCalculada =
+            (formData.consumo_por_caja || 0) /
+            selectedInsumo.contenido_por_unidad;
         }
       }
 
       updateField('cantidad_requerida', cantidadCalculada as any);
     }
-  }, [formData.consumo_por_caja, formData.cantidad_piezas_por_caja, selectedInsumo, usaConsumoPorPieza]);
+  }, [
+    formData.consumo_por_caja,
+    formData.cantidad_piezas_por_caja,
+    selectedInsumo,
+    usaConsumoPorPieza,
+  ]);
 
-  const updateField = <K extends keyof BOMFormData>(field: K, value: BOMFormData[K]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const updateField = <K extends keyof BOMFormData>(
+    field: K,
+    value: BOMFormData[K]
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleEdit = (record: BOMRecord) => {
-    if (!record) return;
+    if (!isValidBOMRecord(record)) {
+      Alert.alert('Error', 'El registro seleccionado no es válido.');
+      return;
+    }
 
     setSelectedRecord(record);
     setFormData({
@@ -146,7 +180,9 @@ export default function UpdateRecordsScreen() {
       unidad_medida: record.unidad_medida,
     });
 
-    const insumo = CATALOGO_INSUMOS.find(i => i.codigo === record.codigo_insumo);
+    const insumo = CATALOGO_INSUMOS.find(
+      (i) => i.codigo === record.codigo_insumo
+    );
     if (insumo) {
       setSelectedInsumo(insumo);
     } else {
@@ -170,7 +206,9 @@ export default function UpdateRecordsScreen() {
     if ((formData.consumo_por_caja || 0) <= 0) {
       Alert.alert(
         'Error',
-        usaConsumoPorPieza ? 'El consumo por pieza debe ser mayor a 0' : 'El consumo por caja debe ser mayor a 0'
+        usaConsumoPorPieza
+          ? 'El consumo por pieza debe ser mayor a 0'
+          : 'El consumo por caja debe ser mayor a 0'
       );
       return;
     }
@@ -188,17 +226,22 @@ export default function UpdateRecordsScreen() {
       updateRecord({ id: selectedRecord.id, data: updates });
       setEditModalVisible(false);
       Alert.alert('Éxito', 'Registro actualizado exitosamente');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en handleUpdate:', error);
       Alert.alert(
         'Error al Actualizar',
-        error instanceof Error ? error.message : 'No se pudo actualizar el registro'
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el registro'
       );
     }
   };
 
   const handleDelete = (record: BOMRecord) => {
-    if (!record) return;
+    if (!isValidBOMRecord(record)) {
+      Alert.alert('Error', 'El registro seleccionado no es válido.');
+      return;
+    }
 
     Alert.alert(
       'Confirmar Eliminación',
@@ -230,7 +273,10 @@ export default function UpdateRecordsScreen() {
         options={{
           headerTitle: 'Actualización de Registros',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerButton}
+            >
               <ArrowLeft size={24} color={CARNIC_COLORS.primary} />
             </TouchableOpacity>
           ),
@@ -252,94 +298,83 @@ export default function UpdateRecordsScreen() {
           <View style={styles.emptyContainer}>
             <Package size={64} color="#cbd5e1" />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'No se encontraron registros' : 'No hay registros aún'}
+              {searchQuery
+                ? 'No se encontraron registros'
+                : 'No hay registros aún'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {searchQuery ? 'Intenta con otro término de búsqueda' : 'Crea tu primer registro'}
+              {searchQuery
+                ? 'Intenta con otro término de búsqueda'
+                : 'Crea tu primer registro'}
             </Text>
           </View>
         ) : (
-          <ScrollView style={styles.recordsList} contentContainerStyle={styles.recordsContent}>
-            {filteredRecords.map((record: BOMRecord) => {
-              try {
-                if (!record || typeof record !== 'object') {
-                  console.error('Registro inválido (null o no objeto) en render:', record);
-                  return null;
-                }
-                if (!record.id) {
-                  console.error('Registro sin ID en render:', record);
-                  return null;
-                }
-                if (!record.descripcion_insumo || typeof record.descripcion_insumo !== 'string') {
-                  console.error('Registro sin descripcion_insumo válida en render:', record);
-                  return null;
-                }
-                if (!record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
-                  console.error('Registro con datos requeridos faltantes en render:', record);
-                  return null;
-                }
-              } catch (error) {
-                console.error('Error validando registro en render:', error, record);
-                return null;
-              }
-
-              return (
-                <View key={record.id} style={styles.recordCard}>
-                  <View style={styles.recordHeader}>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{record?.categoria_insumo || 'N/A'}</Text>
-                    </View>
-                    <View style={styles.recordActions}>
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleEdit(record)}
-                      >
-                        <Edit size={18} color={CARNIC_COLORS.secondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleDelete(record)}
-                      >
-                        <Trash2 size={18} color={CARNIC_COLORS.primary} />
-                      </TouchableOpacity>
-                    </View>
+          <ScrollView
+            style={styles.recordsList}
+            contentContainerStyle={styles.recordsContent}
+          >
+            {filteredRecords.map((record) => (
+              <View key={record.id} style={styles.recordCard}>
+                <View style={styles.recordHeader}>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText}>
+                      {record.categoria_insumo}
+                    </Text>
                   </View>
-
-                  <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
-                  <Text style={styles.partName}>{record.descripcion_sku}</Text>
-
-                  <View style={styles.recordDetails}>
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Código Insumo:</Text>
-                      <Text style={styles.detailValue}>{record.codigo_insumo}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Cantidad Req:</Text>
-                      <Text style={styles.detailValue}>
-                        {record.unidad_medida === 'BOLSAS' || record.unidad_medida === 'UND'
-                          ? Math.round(record.cantidad_requerida || 0)
-                          : (record.cantidad_requerida || 0).toFixed(6)}{' '}
-                        {record.unidad_medida}
-                      </Text>
-                    </View>
+                  <View style={styles.recordActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleEdit(record)}
+                    >
+                      <Edit size={18} color={CARNIC_COLORS.secondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleDelete(record)}
+                    >
+                      <Trash2 size={18} color={CARNIC_COLORS.primary} />
+                    </TouchableOpacity>
                   </View>
-
-                  <Text style={styles.description} numberOfLines={2}>
-                    {record.descripcion_insumo}
-                  </Text>
-
-                  <Text style={styles.metadata}>
-                    Creado por {record.createdBy || 'Desconocido'} el{' '}
-                    {record.createdAt
-                      ? new Date(record.createdAt).toLocaleDateString('es-ES')
-                      : 'N/A'}
-                  </Text>
                 </View>
-              );
-            })}
+
+                <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
+                <Text style={styles.partName}>{record.descripcion_sku}</Text>
+
+                <View style={styles.recordDetails}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Código Insumo:</Text>
+                    <Text style={styles.detailValue}>
+                      {record.codigo_insumo}
+                    </Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Cantidad Req:</Text>
+                    <Text style={styles.detailValue}>
+                      {record.unidad_medida === 'BOLSAS' ||
+                      record.unidad_medida === 'UND'
+                        ? Math.round(record.cantidad_requerida || 0)
+                        : (record.cantidad_requerida || 0).toFixed(6)}{' '}
+                      {record.unidad_medida}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.description} numberOfLines={2}>
+                  {record.descripcion_insumo}
+                </Text>
+
+                <Text style={styles.metadata}>
+                  Creado por {record.createdBy || 'Desconocido'} el{' '}
+                  {record.createdAt
+                    ? new Date(record.createdAt).toLocaleDateString('es-ES')
+                    : 'N/A'}
+                </Text>
+              </View>
+            ))}
           </ScrollView>
         )}
 
+        {/* MODAL EDITAR REGISTRO */}
         <Modal
           visible={editModalVisible}
           animationType="slide"
@@ -382,8 +417,13 @@ export default function UpdateRecordsScreen() {
                   style={styles.dropdown}
                   onPress={() => setShowCategoryModal(true)}
                 >
-                  <Text style={styles.dropdownText}>{formData.categoria_insumo}</Text>
-                  <ChevronDown size={20} color={CARNIC_COLORS.gray[500]} />
+                  <Text style={styles.dropdownText}>
+                    {formData.categoria_insumo || 'Seleccione una categoría'}
+                  </Text>
+                  <ChevronDown
+                    size={20}
+                    color={CARNIC_COLORS.gray[500]}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -421,7 +461,10 @@ export default function UpdateRecordsScreen() {
                   >
                     {formData.descripcion_insumo || 'Seleccione un insumo'}
                   </Text>
-                  <ChevronDown size={20} color={CARNIC_COLORS.gray[500]} />
+                  <ChevronDown
+                    size={20}
+                    color={CARNIC_COLORS.gray[500]}
+                  />
                 </TouchableOpacity>
                 {formData.categoria_insumo && filteredInsumos.length > 0 && (
                   <Text style={styles.hint}>
@@ -452,7 +495,9 @@ export default function UpdateRecordsScreen() {
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>
-                  {usaConsumoPorPieza ? 'Consumo por Pieza *' : 'Consumo por Caja *'}
+                  {usaConsumoPorPieza
+                    ? 'Consumo por Pieza *'
+                    : 'Consumo por Caja *'}
                 </Text>
                 <Text style={styles.hint}>
                   {usaConsumoPorPieza
@@ -461,8 +506,12 @@ export default function UpdateRecordsScreen() {
                 </Text>
                 <TextInput
                   style={styles.input}
-                  value={formData.consumo_por_caja ? String(formData.consumo_por_caja) : ''}
-                  onChangeText={value => {
+                  value={
+                    formData.consumo_por_caja
+                      ? String(formData.consumo_por_caja)
+                      : ''
+                  }
+                  onChangeText={(value) => {
                     const num = parseFloat(value) || 0;
                     updateField('consumo_por_caja', num as any);
                   }}
@@ -471,13 +520,17 @@ export default function UpdateRecordsScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Cantidad Requerida (Calculada)</Text>
+                <Text style={styles.label}>
+                  Cantidad Requerida (Calculada)
+                </Text>
                 <View style={styles.calculatedField}>
                   <Text style={styles.calculatedValue}>
                     {formData.cantidad_requerida
                       ? formData.unidad_medida === 'BOLSAS' ||
                         formData.unidad_medida === 'UND'
-                        ? Math.round(formData.cantidad_requerida).toString()
+                        ? Math.round(
+                            formData.cantidad_requerida
+                          ).toString()
                         : formData.cantidad_requerida.toFixed(6)
                       : formData.unidad_medida === 'BOLSAS' ||
                         formData.unidad_medida === 'UND'
@@ -506,19 +559,25 @@ export default function UpdateRecordsScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.updateButton, isUpdatingRecord && styles.updateButtonDisabled]}
+                style={[
+                  styles.updateButton,
+                  isUpdatingRecord && styles.updateButtonDisabled,
+                ]}
                 onPress={handleUpdate}
                 disabled={isUpdatingRecord}
                 activeOpacity={0.8}
               >
                 <Text style={styles.updateButtonText}>
-                  {isUpdatingRecord ? 'Actualizando...' : 'Actualizar Registro'}
+                  {isUpdatingRecord
+                    ? 'Actualizando...'
+                    : 'Actualizar Registro'}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
 
+        {/* MODAL CATEGORÍA */}
         <Modal
           visible={showCategoryModal}
           transparent={true}
@@ -529,17 +588,20 @@ export default function UpdateRecordsScreen() {
             <View style={styles.modalContentSmall}>
               <View style={styles.modalHeaderSmall}>
                 <Text style={styles.modalTitleSmall}>Seleccione Categoría</Text>
-                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <TouchableOpacity
+                  onPress={() => setShowCategoryModal(false)}
+                >
                   <Text style={styles.modalClose}>✕</Text>
                 </TouchableOpacity>
               </View>
               <ScrollView>
-                {CATEGORIAS_INSUMO.map(categoria => (
+                {CATEGORIAS_INSUMO.map((categoria) => (
                   <TouchableOpacity
                     key={categoria}
                     style={[
                       styles.modalItem,
-                      formData.categoria_insumo === categoria && styles.modalItemSelected,
+                      formData.categoria_insumo === categoria &&
+                        styles.modalItemSelected,
                     ]}
                     onPress={() => handleSelectCategoria(categoria)}
                   >
@@ -559,6 +621,7 @@ export default function UpdateRecordsScreen() {
           </View>
         </Modal>
 
+        {/* MODAL INSUMO */}
         <Modal
           visible={showInsumoModal}
           transparent={true}
@@ -569,17 +632,20 @@ export default function UpdateRecordsScreen() {
             <View style={styles.modalContentSmall}>
               <View style={styles.modalHeaderSmall}>
                 <Text style={styles.modalTitleSmall}>Seleccione Insumo</Text>
-                <TouchableOpacity onPress={() => setShowInsumoModal(false)}>
+                <TouchableOpacity
+                  onPress={() => setShowInsumoModal(false)}
+                >
                   <Text style={styles.modalClose}>✕</Text>
                 </TouchableOpacity>
               </View>
               <ScrollView>
-                {filteredInsumos.map(insumo => (
+                {filteredInsumos.map((insumo) => (
                   <TouchableOpacity
                     key={insumo.codigo}
                     style={[
                       styles.modalItem,
-                      formData.codigo_insumo === insumo.codigo && styles.modalItemSelected,
+                      formData.codigo_insumo === insumo.codigo &&
+                        styles.modalItemSelected,
                     ]}
                     onPress={() => handleSelectInsumo(insumo)}
                   >
@@ -593,8 +659,8 @@ export default function UpdateRecordsScreen() {
                       {insumo.descripcion}
                     </Text>
                     <Text style={styles.modalItemSubtext}>
-                      Código: {insumo.codigo} | Contenido: {insumo.contenido_por_unidad}{' '}
-                      {insumo.unidad_medida}
+                      Código: {insumo.codigo} | Contenido:{' '}
+                      {insumo.contenido_por_unidad} {insumo.unidad_medida}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -648,7 +714,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#64748b',
     marginTop: 16,
     marginBottom: 8,
@@ -690,7 +756,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: CARNIC_COLORS.secondary,
   },
   recordActions: {
@@ -707,13 +773,13 @@ const styles = StyleSheet.create({
   },
   partNumber: {
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: CARNIC_COLORS.secondary,
     marginBottom: 4,
   },
   partName: {
     fontSize: 18,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#0f172a',
     marginBottom: 12,
   },
@@ -734,7 +800,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: '#0f172a',
   },
   description: {
@@ -767,7 +833,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#0f172a',
   },
   closeButton: {
@@ -787,7 +853,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: '#334155',
     marginBottom: 4,
   },
@@ -848,7 +914,7 @@ const styles = StyleSheet.create({
   },
   calculatedValue: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: CARNIC_COLORS.secondary,
     marginBottom: 4,
   },
@@ -876,7 +942,7 @@ const styles = StyleSheet.create({
   updateButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700' as const,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
@@ -900,13 +966,13 @@ const styles = StyleSheet.create({
   },
   modalTitleSmall: {
     fontSize: 18,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#0f172a',
   },
   modalClose: {
     fontSize: 24,
     color: '#64748b',
-    fontWeight: '400' as const,
+    fontWeight: '400',
   },
   modalItem: {
     padding: 16,
@@ -923,7 +989,7 @@ const styles = StyleSheet.create({
   },
   modalItemTextSelected: {
     color: CARNIC_COLORS.secondary,
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
   modalItemSubtext: {
     fontSize: 12,
