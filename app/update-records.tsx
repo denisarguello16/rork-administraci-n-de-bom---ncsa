@@ -252,6 +252,10 @@ export default function UpdateRecordsScreen() {
                   console.error('Registro sin descripcion_insumo válida en render:', record);
                   return null;
                 }
+                if (!record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
+                  console.error('Registro con datos requeridos faltantes en render:', record);
+                  return null;
+                }
               } catch (error) {
                 console.error('Error validando registro en render:', error, record);
                 return null;
@@ -278,31 +282,31 @@ export default function UpdateRecordsScreen() {
                   </View>
                 </View>
 
-                <Text style={styles.partNumber}>SKU: {record?.codigo_sku || 'N/A'}</Text>
-                <Text style={styles.partName}>{record?.descripcion_sku || 'N/A'}</Text>
+                <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
+                <Text style={styles.partName}>{record.descripcion_sku}</Text>
 
                 <View style={styles.recordDetails}>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Código Insumo:</Text>
-                    <Text style={styles.detailValue}>{record?.codigo_insumo || 'N/A'}</Text>
+                    <Text style={styles.detailValue}>{record.codigo_insumo}</Text>
                   </View>
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Cantidad Req:</Text>
                     <Text style={styles.detailValue}>
-                      {record?.unidad_medida === 'BOLSAS' || record?.unidad_medida === 'UND'
-                        ? Math.round(record?.cantidad_requerida || 0)
-                        : (record?.cantidad_requerida || 0).toFixed(6)} {record?.unidad_medida || ''}
+                      {record.unidad_medida === 'BOLSAS' || record.unidad_medida === 'UND'
+                        ? Math.round(record.cantidad_requerida || 0)
+                        : (record.cantidad_requerida || 0).toFixed(6)} {record.unidad_medida}
                     </Text>
                   </View>
                 </View>
 
                 <Text style={styles.description} numberOfLines={2}>
-                  {record?.descripcion_insumo || 'N/A'}
+                  {record.descripcion_insumo}
                 </Text>
 
                 <Text style={styles.metadata}>
-                  Creado por {record?.createdBy || 'Desconocido'} el{' '}
-                  {record?.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
+                  Creado por {record.createdBy || 'Desconocido'} el{' '}
+                  {record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
                 </Text>
               </View>
             );
