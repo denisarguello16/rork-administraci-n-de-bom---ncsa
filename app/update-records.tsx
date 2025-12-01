@@ -39,23 +39,34 @@ export default function UpdateRecordsScreen() {
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
 
-  const filteredRecords = records
+  // Aseguramos que siempre trabajamos con un array
+  const safeRecords: any[] = Array.isArray(records) ? records : [];
+
+  const filteredRecords = safeRecords
     .filter((record: any): record is BOMRecord => {
-      if (!record) {
-        console.log('Registro undefined o null encontrado');
+      // Blindaje total contra undefined / null / tipos raros
+      if (!record || typeof record !== 'object') {
+        console.log('Registro inválido (null, undefined o no objeto):', record);
         return false;
       }
-      
-      if (typeof record !== 'object') {
-        console.log('Registro no es un objeto:', record);
+
+      const {
+        descripcion_insumo,
+        codigo_sku,
+        descripcion_sku,
+        categoria_insumo,
+      } = record as any;
+
+      if (
+        typeof descripcion_insumo !== 'string' ||
+        typeof codigo_sku !== 'string' ||
+        typeof descripcion_sku !== 'string' ||
+        typeof categoria_insumo !== 'string'
+      ) {
+        console.log('Registro con datos incompletos o tipos inválidos:', record);
         return false;
       }
-      
-      if (!record.descripcion_insumo || !record.codigo_sku || !record.descripcion_sku || !record.categoria_insumo) {
-        console.log('Registro con datos incompletos:', record);
-        return false;
-      }
-      
+
       return true;
     })
     .filter((record: BOMRecord) => {
@@ -79,17 +90,17 @@ export default function UpdateRecordsScreen() {
 
   const handleSelectCategoria = (categoria: string) => {
     updateField('categoria_insumo', categoria);
-    updateField('descripcion_insumo', '');
-    updateField('codigo_insumo', '');
+    updateField('descripcion_insumo', '' as any);
+    updateField('codigo_insumo', '' as any);
     setSelectedInsumo(null);
     setShowCategoryModal(false);
   };
 
   const handleSelectInsumo = (insumo: Insumo) => {
     setSelectedInsumo(insumo);
-    updateField('descripcion_insumo', insumo.descripcion);
-    updateField('codigo_insumo', insumo.codigo);
-    updateField('unidad_medida', insumo.unidad_medida);
+    updateField('descripcion_insumo', insumo.descripcion as any);
+    updateField('codigo_insumo', insumo.codigo as any);
+    updateField('unidad_medida', insumo.unidad_medida as any);
     setShowInsumoModal(false);
   };
 
@@ -98,18 +109,20 @@ export default function UpdateRecordsScreen() {
   useEffect(() => {
     if (selectedInsumo) {
       let cantidadCalculada = 0;
-      
+
       if (usaConsumoPorPieza) {
         if ((formData.cantidad_piezas_por_caja || 0) > 0 && (formData.consumo_por_caja || 0) > 0) {
-          cantidadCalculada = ((formData.cantidad_piezas_por_caja || 0) * (formData.consumo_por_caja || 0)) / selectedInsumo.contenido_por_unidad;
+          cantidadCalculada =
+            ((formData.cantidad_piezas_por_caja || 0) * (formData.consumo_por_caja || 0)) /
+            selectedInsumo.contenido_por_unidad;
         }
       } else {
         if ((formData.consumo_por_caja || 0) > 0) {
           cantidadCalculada = (formData.consumo_por_caja || 0) / selectedInsumo.contenido_por_unidad;
         }
       }
-      
-      updateField('cantidad_requerida', cantidadCalculada);
+
+      updateField('cantidad_requerida', cantidadCalculada as any);
     }
   }, [formData.consumo_por_caja, formData.cantidad_piezas_por_caja, selectedInsumo, usaConsumoPorPieza]);
 
@@ -118,6 +131,8 @@ export default function UpdateRecordsScreen() {
   };
 
   const handleEdit = (record: BOMRecord) => {
+    if (!record) return;
+
     setSelectedRecord(record);
     setFormData({
       codigo_sku: record.codigo_sku,
@@ -134,6 +149,8 @@ export default function UpdateRecordsScreen() {
     const insumo = CATALOGO_INSUMOS.find(i => i.codigo === record.codigo_insumo);
     if (insumo) {
       setSelectedInsumo(insumo);
+    } else {
+      setSelectedInsumo(null);
     }
 
     setEditModalVisible(true);
@@ -151,7 +168,10 @@ export default function UpdateRecordsScreen() {
       return;
     }
     if ((formData.consumo_por_caja || 0) <= 0) {
-      Alert.alert('Error', usaConsumoPorPieza ? 'El consumo por pieza debe ser mayor a 0' : 'El consumo por caja debe ser mayor a 0');
+      Alert.alert(
+        'Error',
+        usaConsumoPorPieza ? 'El consumo por pieza debe ser mayor a 0' : 'El consumo por caja debe ser mayor a 0'
+      );
       return;
     }
 
@@ -178,6 +198,8 @@ export default function UpdateRecordsScreen() {
   };
 
   const handleDelete = (record: BOMRecord) => {
+    if (!record) return;
+
     Alert.alert(
       'Confirmar Eliminación',
       `¿Está seguro de eliminar el registro "${record.descripcion_sku}"?`,
@@ -260,56 +282,60 @@ export default function UpdateRecordsScreen() {
                 console.error('Error validando registro en render:', error, record);
                 return null;
               }
+
               return (
-              <View key={record.id} style={styles.recordCard}>
-                <View style={styles.recordHeader}>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{record?.categoria_insumo || 'N/A'}</Text>
+                <View key={record.id} style={styles.recordCard}>
+                  <View style={styles.recordHeader}>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>{record?.categoria_insumo || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.recordActions}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleEdit(record)}
+                      >
+                        <Edit size={18} color={CARNIC_COLORS.secondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleDelete(record)}
+                      >
+                        <Trash2 size={18} color={CARNIC_COLORS.primary} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={styles.recordActions}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleEdit(record)}
-                    >
-                      <Edit size={18} color={CARNIC_COLORS.secondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleDelete(record)}
-                    >
-                      <Trash2 size={18} color={CARNIC_COLORS.primary} />
-                    </TouchableOpacity>
+
+                  <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
+                  <Text style={styles.partName}>{record.descripcion_sku}</Text>
+
+                  <View style={styles.recordDetails}>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Código Insumo:</Text>
+                      <Text style={styles.detailValue}>{record.codigo_insumo}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Cantidad Req:</Text>
+                      <Text style={styles.detailValue}>
+                        {record.unidad_medida === 'BOLSAS' || record.unidad_medida === 'UND'
+                          ? Math.round(record.cantidad_requerida || 0)
+                          : (record.cantidad_requerida || 0).toFixed(6)}{' '}
+                        {record.unidad_medida}
+                      </Text>
+                    </View>
                   </View>
+
+                  <Text style={styles.description} numberOfLines={2}>
+                    {record.descripcion_insumo}
+                  </Text>
+
+                  <Text style={styles.metadata}>
+                    Creado por {record.createdBy || 'Desconocido'} el{' '}
+                    {record.createdAt
+                      ? new Date(record.createdAt).toLocaleDateString('es-ES')
+                      : 'N/A'}
+                  </Text>
                 </View>
-
-                <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
-                <Text style={styles.partName}>{record.descripcion_sku}</Text>
-
-                <View style={styles.recordDetails}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Código Insumo:</Text>
-                    <Text style={styles.detailValue}>{record.codigo_insumo}</Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Cantidad Req:</Text>
-                    <Text style={styles.detailValue}>
-                      {record.unidad_medida === 'BOLSAS' || record.unidad_medida === 'UND'
-                        ? Math.round(record.cantidad_requerida || 0)
-                        : (record.cantidad_requerida || 0).toFixed(6)} {record.unidad_medida}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.description} numberOfLines={2}>
-                  {record.descripcion_insumo}
-                </Text>
-
-                <Text style={styles.metadata}>
-                  Creado por {record.createdBy || 'Desconocido'} el{' '}
-                  {record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-ES') : 'N/A'}
-                </Text>
-              </View>
-            );
+              );
             })}
           </ScrollView>
         )}
@@ -366,7 +392,7 @@ export default function UpdateRecordsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.dropdown,
-                    !formData.categoria_insumo && styles.dropdownDisabled
+                    !formData.categoria_insumo && styles.dropdownDisabled,
                   ]}
                   onPress={() => {
                     if (!formData.categoria_insumo) {
@@ -425,9 +451,11 @@ export default function UpdateRecordsScreen() {
               )}
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>{usaConsumoPorPieza ? 'Consumo por Pieza *' : 'Consumo por Caja *'}</Text>
+                <Text style={styles.label}>
+                  {usaConsumoPorPieza ? 'Consumo por Pieza *' : 'Consumo por Caja *'}
+                </Text>
                 <Text style={styles.hint}>
-                  {usaConsumoPorPieza 
+                  {usaConsumoPorPieza
                     ? 'Cantidad que consume cada pieza'
                     : 'Cantidad que consume cada caja del SKU'}
                 </Text>
@@ -436,7 +464,7 @@ export default function UpdateRecordsScreen() {
                   value={formData.consumo_por_caja ? String(formData.consumo_por_caja) : ''}
                   onChangeText={value => {
                     const num = parseFloat(value) || 0;
-                    updateField('consumo_por_caja', num);
+                    updateField('consumo_por_caja', num as any);
                   }}
                   keyboardType="decimal-pad"
                 />
@@ -447,15 +475,21 @@ export default function UpdateRecordsScreen() {
                 <View style={styles.calculatedField}>
                   <Text style={styles.calculatedValue}>
                     {formData.cantidad_requerida
-                      ? (formData.unidad_medida === 'BOLSAS' || formData.unidad_medida === 'UND'
-                          ? Math.round(formData.cantidad_requerida).toString()
-                          : formData.cantidad_requerida.toFixed(6))
-                      : (formData.unidad_medida === 'BOLSAS' || formData.unidad_medida === 'UND' ? '0' : '0.000000')}
+                      ? formData.unidad_medida === 'BOLSAS' ||
+                        formData.unidad_medida === 'UND'
+                        ? Math.round(formData.cantidad_requerida).toString()
+                        : formData.cantidad_requerida.toFixed(6)
+                      : formData.unidad_medida === 'BOLSAS' ||
+                        formData.unidad_medida === 'UND'
+                      ? '0'
+                      : '0.000000'}
                   </Text>
                   {selectedInsumo && formData.consumo_por_caja && (
                     <Text style={styles.calculatedHint}>
                       {usaConsumoPorPieza
-                        ? `= (${formData.cantidad_piezas_por_caja || 0} × ${formData.consumo_por_caja}) / ${selectedInsumo.contenido_por_unidad}`
+                        ? `= (${formData.cantidad_piezas_por_caja || 0} × ${
+                            formData.consumo_por_caja
+                          }) / ${selectedInsumo.contenido_por_unidad}`
                         : `= ${formData.consumo_por_caja} / ${selectedInsumo.contenido_por_unidad}`}
                     </Text>
                   )}
@@ -568,8 +602,6 @@ export default function UpdateRecordsScreen() {
             </View>
           </View>
         </Modal>
-
-
       </View>
     </>
   );
