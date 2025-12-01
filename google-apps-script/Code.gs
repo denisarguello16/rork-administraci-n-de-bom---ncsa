@@ -276,85 +276,112 @@ function addBOMRecord(record) {
 }
 
 /**
- * Actualizar un registro BOM - Mueve la info antigua a OBSOLETO
+ * Actualizar un registro BOM - Mueve la info antigua a OBSOLETO (versión robusta)
  */
 function updateBOMRecord(codigo_sku, updates) {
   try {
-    // 🔐 FIX: validar que updates sea objeto
+    // 1. Validaciones básicas
+    if (!codigo_sku) {
+      return { success: false, error: 'Parámetro "codigo_sku" requerido en updateBOMRecord' };
+    }
+
     if (!updates || typeof updates !== 'object') {
-      return { success: false, error: 'Objeto "updates" inválido en updateBOMRecord' };
+      const detalle = updates === undefined
+        ? 'undefined'
+        : updates === null
+          ? 'null'
+          : JSON.stringify(updates);
+
+      return {
+        success: false,
+        error: 'Parámetro "updates" inválido o ausente en updateBOMRecord. Valor recibido: ' + detalle
+      };
     }
 
     const sheet = getOrCreateSheet(SHEETS.INFORMACION_INSUMOS);
     const obsoleteSheet = getOrCreateSheet(SHEETS.OBSOLETO);
     const data = sheet.getDataRange().getValues();
     const timestamp = new Date().toISOString();
-    
+    const updatedBy = updates.updatedBy || 'Sistema';
+
     let updatedCount = 0;
-    
+
     for (let i = 1; i < data.length; i++) {
-      if (data[i][2] === codigo_sku && data[i][15] === 'Activo') {
-        const oldVersion = data[i][1] || 0;
+      const row = data[i];
+      const estado = String(row[15] || '').trim();
+
+      if (row[2] === codigo_sku && estado === 'Activo') {
+        const oldVersion = row[1] || 0;
         const newVersion = oldVersion + 1;
-        
-        const updatedBy = updates.updatedBy || 'Sistema';
-        
+
+        // 2. Guardar versión obsoleta
         const obsoleteRow = [
           Date.now().toString() + '_' + i,
           oldVersion,
           'BOM',
           codigo_sku,
           JSON.stringify({
-            categoria_insumo: data[i][4],
-            codigo_insumo: data[i][5],
-            descripcion_insumo: data[i][6],
-            cantidad_requerida: data[i][7],
-            cantidad_piezas_por_caja: data[i][8],
-            consumo_por_caja: data[i][9],
-            unidad_medida: data[i][10]
+            categoria_insumo: row[4],
+            codigo_insumo: row[5],
+            descripcion_insumo: row[6],
+            cantidad_requerida: row[7],
+            cantidad_piezas_por_caja: row[8],
+            consumo_por_caja: row[9],
+            unidad_medida: row[10]
           }),
           'Versión ' + newVersion,
           timestamp,
           updatedBy,
-          data[i][2],
-          data[i][3],
-          data[i][4],
-          data[i][5],
-          data[i][6],
-          data[i][7],
-          data[i][8],
-          data[i][9],
-          data[i][10]
+          row[2],
+          row[3],
+          row[4],
+          row[5],
+          row[6],
+          row[7],
+          row[8],
+          row[9],
+          row[10]
         ];
-        
+
         obsoleteSheet.appendRow(obsoleteRow);
-        
+
+        // 3. Actualizar fila activa
         sheet.getRange(i + 1, 2).setValue(newVersion);
-        if (typeof updates.codigo_sku !== 'undefined') sheet.getRange(i + 1, 3).setValue(updates.codigo_sku);
-        if (typeof updates.descripcion_sku !== 'undefined') sheet.getRange(i + 1, 4).setValue(updates.descripcion_sku);
-        if (typeof updates.categoria_insumo !== 'undefined') sheet.getRange(i + 1, 5).setValue(updates.categoria_insumo);
-        if (typeof updates.codigo_insumo !== 'undefined') sheet.getRange(i + 1, 6).setValue(updates.codigo_insumo);
-        if (typeof updates.descripcion_insumo !== 'undefined') sheet.getRange(i + 1, 7).setValue(updates.descripcion_insumo);
-        if (typeof updates.cantidad_requerida !== 'undefined') sheet.getRange(i + 1, 8).setValue(updates.cantidad_requerida);
-        if (typeof updates.cantidad_piezas_por_caja !== 'undefined') sheet.getRange(i + 1, 9).setValue(updates.cantidad_piezas_por_caja);
-        if (typeof updates.consumo_por_caja !== 'undefined') sheet.getRange(i + 1, 10).setValue(updates.consumo_por_caja);
-        if (typeof updates.unidad_medida !== 'undefined') sheet.getRange(i + 1, 11).setValue(updates.unidad_medida);
+
+        if ('codigo_sku' in updates) sheet.getRange(i + 1, 3).setValue(updates.codigo_sku);
+        if ('descripcion_sku' in updates) sheet.getRange(i + 1, 4).setValue(updates.descripcion_sku);
+        if ('categoria_insumo' in updates) sheet.getRange(i + 1, 5).setValue(updates.categoria_insumo);
+        if ('codigo_insumo' in updates) sheet.getRange(i + 1, 6).setValue(updates.codigo_insumo);
+        if ('descripcion_insumo' in updates) sheet.getRange(i + 1, 7).setValue(updates.descripcion_insumo);
+        if ('cantidad_requerida' in updates) sheet.getRange(i + 1, 8).setValue(updates.cantidad_requerida);
+        if ('cantidad_piezas_por_caja' in updates) sheet.getRange(i + 1, 9).setValue(updates.cantidad_piezas_por_caja);
+        if ('consumo_por_caja' in updates) sheet.getRange(i + 1, 10).setValue(updates.consumo_por_caja);
+        if ('unidad_medida' in updates) sheet.getRange(i + 1, 11).setValue(updates.unidad_medida);
+
         sheet.getRange(i + 1, 14).setValue(updatedBy);
         sheet.getRange(i + 1, 15).setValue(timestamp);
-        
+
         updatedCount++;
       }
     }
-    
+
     if (updatedCount > 0) {
-      return { success: true, message: updatedCount + ' registro(s) actualizado(s) correctamente' };
+      return {
+        success: true,
+        message: updatedCount + ' registro(s) actualizado(s) correctamente'
+      };
     }
-    
-    return { success: false, error: 'Registro no encontrado' };
+
+    return {
+      success: false,
+      error: 'Registro no encontrado para código SKU: ' + codigo_sku
+    };
   } catch (error) {
+    Logger.log('Error en updateBOMRecord: ' + error);
     return { success: false, error: error.toString() };
   }
 }
+
 
 /**
  * Eliminar un registro BOM (marcado como inactivo)
