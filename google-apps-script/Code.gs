@@ -1,8 +1,6 @@
-// ====================== CONFIGURACIÓN ======================
 const SPREADSHEET_ID = 'PON_AQUI_TU_SPREADSHEET_ID';
-const SHEET_NAME = 'BOM'; // cambia al nombre real de tu hoja
+const SHEET_NAME = 'BOM'; // Cambia al nombre real de la hoja
 
-// ====================== HELPERS BÁSICOS ======================
 function getSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEET_NAME);
@@ -13,16 +11,14 @@ function getSheet() {
 }
 
 function jsonResponse(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
+    ContentService.MimeType.JSON
+  );
 }
 
 function getHeaderRow_(sheet) {
   const lastCol = sheet.getLastColumn();
-  if (lastCol === 0) {
-    return [];
-  }
+  if (lastCol === 0) return [];
   return sheet.getRange(1, 1, 1, lastCol).getValues()[0];
 }
 
@@ -33,7 +29,7 @@ function getHeaderMap_(sheet) {
     if (!name) return;
     const key = String(name).trim();
     if (key) {
-      map[key] = idx + 1; // columnas 1-based
+      map[key] = idx + 1; // 1-based
     }
   });
   return map;
@@ -51,35 +47,36 @@ function findColumnIndex_(headerRow, targetName) {
   return -1;
 }
 
-// ====================== ROUTERS GET / POST ======================
 function doGet(e) {
   try {
-    var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : '';
+    var action = e && e.parameter && e.parameter.action ? e.parameter.action : '';
     if (action === 'getBOMRecords') {
       return handleGetBOMRecords_();
     }
     return jsonResponse({
       success: false,
-      error: 'Acción GET no soportada: ' + action
+      error: 'Acción GET no soportada: ' + action,
     });
   } catch (err) {
     return jsonResponse({
       success: false,
-      error: String(err)
+      error: String(err),
     });
   }
 }
 
 function doPost(e) {
   try {
-    var bodyText = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+    var bodyText =
+      e && e.postData && e.postData.contents ? e.postData.contents : '{}';
     var body = {};
     try {
       body = JSON.parse(bodyText);
     } catch (parseErr) {
       return jsonResponse({
         success: false,
-        error: 'No se pudo parsear el JSON de la petición: ' + String(parseErr)
+        error:
+          'No se pudo parsear el JSON de la petición: ' + String(parseErr),
       });
     }
 
@@ -97,27 +94,25 @@ function doPost(e) {
 
     return jsonResponse({
       success: false,
-      error: 'Acción POST no soportada: ' + action
+      error: 'Acción POST no soportada: ' + action,
     });
   } catch (err) {
     return jsonResponse({
       success: false,
-      error: String(err)
+      error: String(err),
     });
   }
 }
 
-// ====================== GET: OBTENER REGISTROS ======================
 function handleGetBOMRecords_() {
   var sheet = getSheet();
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
 
   if (lastRow < 2 || lastCol === 0) {
-    // Solo headers o hoja vacía
     return jsonResponse({
       success: true,
-      data: []
+      data: [],
     });
   }
 
@@ -125,56 +120,66 @@ function handleGetBOMRecords_() {
   var headers = values[0];
   var rows = values.slice(1);
 
-  var data = rows.map(function (row) {
-    var obj = {};
-    headers.forEach(function (header, index) {
-      if (!header) return;
-      var key = String(header).trim();
-      if (!key) return;
-      obj[key] = row[index];
+  var data = rows
+    .map(function (row) {
+      var obj = {};
+      headers.forEach(function (header, index) {
+        if (!header) return;
+        var key = String(header).trim();
+        if (!key) return;
+        obj[key] = row[index];
+      });
+      return obj;
+    })
+    .filter(function (record) {
+      try {
+        if (!record || typeof record !== 'object') return false;
+
+        var descripcion_insumo = record.descripcion_insumo;
+        var codigo_sku = record.codigo_sku;
+        var descripcion_sku = record.descripcion_sku;
+        var categoria_insumo = record.categoria_insumo;
+
+        if (
+          typeof descripcion_insumo !== 'string' ||
+          !descripcion_insumo.trim()
+        )
+          return false;
+        if (typeof codigo_sku !== 'string' || !codigo_sku.trim()) return false;
+        if (typeof descripcion_sku !== 'string' || !descripcion_sku.trim())
+          return false;
+        if (
+          typeof categoria_insumo !== 'string' ||
+          !categoria_insumo.trim()
+        )
+          return false;
+
+        return true;
+      } catch (err) {
+        Logger.log('Error filtrando registro en handleGetBOMRecords_: ' + err);
+        return false;
+      }
     });
-    return obj;
-  }).filter(function (record) {
-    try {
-      // Misma lógica que usas en el frontend para considerar un registro "válido"
-      return record &&
-        typeof record === 'object' &&
-        record.descripcion_insumo &&
-        String(record.descripcion_insumo).trim() !== '' &&
-        record.codigo_sku &&
-        String(record.codigo_sku).trim() !== '' &&
-        record.descripcion_sku &&
-        String(record.descripcion_sku).trim() !== '' &&
-        record.categoria_insumo &&
-        String(record.categoria_insumo).trim() !== '';
-    } catch (err) {
-      // Si aquí hubiera algún error, lo ignoramos y filtramos el registro
-      Logger.log('Error filtrando registro en handleGetBOMRecords_: ' + err);
-      return false;
-    }
-  });
 
   return jsonResponse({
     success: true,
-    data: data
+    data: data,
   });
 }
 
-// ====================== POST: AGREGAR REGISTRO ======================
 function handleAddBOMRecord_(body) {
   var record = body && body.record;
   if (!record || typeof record !== 'object') {
     return jsonResponse({
       success: false,
-      error: 'Objeto "record" no recibido o inválido en addBOMRecord'
+      error: 'Objeto "record" no recibido o inválido en addBOMRecord',
     });
   }
 
   var sheet = getSheet();
   var headerRow = getHeaderRow_(sheet);
-  var headerMap = getHeaderMap_(sheet);
-
   var lastCol = sheet.getLastColumn();
+
   var rowValues = [];
   for (var c = 1; c <= lastCol; c++) {
     var headerName = headerRow[c - 1];
@@ -189,11 +194,10 @@ function handleAddBOMRecord_(body) {
   sheet.appendRow(rowValues);
 
   return jsonResponse({
-    success: true
+    success: true,
   });
 }
 
-// ====================== POST: ACTUALIZAR REGISTRO ======================
 function handleUpdateBOMRecord_(body) {
   var codigo_sku = body && body.codigo_sku;
   var updates = body && body.updates;
@@ -201,14 +205,15 @@ function handleUpdateBOMRecord_(body) {
   if (!codigo_sku) {
     return jsonResponse({
       success: false,
-      error: 'Falta "codigo_sku" en la petición de updateBOMRecord'
+      error: 'Falta "codigo_sku" en la petición de updateBOMRecord',
     });
   }
 
   if (!updates || typeof updates !== 'object') {
     return jsonResponse({
       success: false,
-      error: 'Objeto "updates" no recibido o inválido en updateBOMRecord'
+      error:
+        'Objeto "updates" no recibido o inválido en updateBOMRecord',
     });
   }
 
@@ -219,7 +224,7 @@ function handleUpdateBOMRecord_(body) {
   if (lastRow < 2 || lastCol === 0) {
     return jsonResponse({
       success: false,
-      error: 'La hoja está vacía, no hay registros para actualizar'
+      error: 'La hoja está vacía, no hay registros para actualizar',
     });
   }
 
@@ -230,12 +235,12 @@ function handleUpdateBOMRecord_(body) {
   if (skuCol === -1) {
     return jsonResponse({
       success: false,
-      error: 'No se encontró la columna "codigo_sku" en los encabezados'
+      error: 'No se encontró la columna "codigo_sku" en los encabezados',
     });
   }
 
-  var targetRow = -1;
   var skuBuscar = String(codigo_sku).trim().toLowerCase();
+  var targetRow = -1;
 
   for (var r = 2; r <= lastRow; r++) {
     var cellValue = sheet.getRange(r, skuCol).getValue();
@@ -248,33 +253,27 @@ function handleUpdateBOMRecord_(body) {
   if (targetRow === -1) {
     return jsonResponse({
       success: false,
-      error: 'No se encontró ningún registro con codigo_sku: ' + codigo_sku
+      error: 'No se encontró ningún registro con codigo_sku: ' + codigo_sku,
     });
   }
 
-  // Aplicar updates genéricamente por nombre de columna
   Object.keys(updates).forEach(function (key) {
     var col = headerMap[key];
-    if (!col) {
-      // Si no existe esa columna en los encabezados, lo ignoramos
-      return;
-    }
-    var value = updates[key];
-    sheet.getRange(targetRow, col).setValue(value);
+    if (!col) return;
+    sheet.getRange(targetRow, col).setValue(updates[key]);
   });
 
   return jsonResponse({
-    success: true
+    success: true,
   });
 }
 
-// ====================== POST: ELIMINAR REGISTRO ======================
 function handleDeleteBOMRecord_(body) {
   var id = body && body.id;
   if (!id) {
     return jsonResponse({
       success: false,
-      error: 'Falta "id" en la petición de deleteBOMRecord'
+      error: 'Falta "id" en la petición de deleteBOMRecord',
     });
   }
 
@@ -285,7 +284,7 @@ function handleDeleteBOMRecord_(body) {
   if (lastRow < 2 || lastCol === 0) {
     return jsonResponse({
       success: false,
-      error: 'La hoja está vacía, no hay registros para eliminar'
+      error: 'La hoja está vacía, no hay registros para eliminar',
     });
   }
 
@@ -294,7 +293,7 @@ function handleDeleteBOMRecord_(body) {
   if (idCol === -1) {
     return jsonResponse({
       success: false,
-      error: 'No se encontró la columna "id" en los encabezados'
+      error: 'No se encontró la columna "id" en los encabezados',
     });
   }
 
@@ -312,13 +311,13 @@ function handleDeleteBOMRecord_(body) {
   if (targetRow === -1) {
     return jsonResponse({
       success: false,
-      error: 'No se encontró ningún registro con id: ' + id
+      error: 'No se encontró ningún registro con id: ' + id,
     });
   }
 
   sheet.deleteRow(targetRow);
 
   return jsonResponse({
-    success: true
+    success: true,
   });
 }
