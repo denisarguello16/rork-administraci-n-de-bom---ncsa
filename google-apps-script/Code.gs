@@ -215,11 +215,10 @@ function addBOMRecord(record) {
   try {
     // 1. Validar que record viene en la petición
     if (!record || typeof record !== 'object') {
-      // NO intentamos acceder a record.descripcion_insumo si record es undefined/null
-      const detalle = record === undefined 
-        ? 'undefined' 
-        : record === null 
-          ? 'null' 
+      const detalle = record === undefined
+        ? 'undefined'
+        : record === null
+          ? 'null'
           : JSON.stringify(record);
       
       return {
@@ -230,42 +229,41 @@ function addBOMRecord(record) {
 
     const sheet = getOrCreateSheet(SHEETS.INFORMACION_INSUMOS);
 
-    // 2. Normalizar todos los campos para evitar undefined
+    // 2. Normalizar campos para evitar undefined
     const id = record.id || (Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9));
     const codigo_sku = record.codigo_sku || '';
     const descripcion_sku = record.descripcion_sku || '';
     const categoria_insumo = record.categoria_insumo || '';
     const codigo_insumo = record.codigo_insumo || '';
     const descripcion_insumo = record.descripcion_insumo || '';
-    
+
     const cantidad_requerida = Number(record.cantidad_requerida) || 0;
     const cantidad_piezas_por_caja = Number(record.cantidad_piezas_por_caja) || 0;
     const consumo_por_caja = Number(record.consumo_por_caja) || 0;
-    
+
     const unidad_medida = record.unidad_medida || '';
     const createdBy = record.createdBy || 'Sistema';
     const createdAt = record.createdAt || new Date().toISOString();
     const updatedBy = record.updatedBy || '';
     const updatedAt = record.updatedAt || '';
 
-    // 3. Construir la fila que se va a guardar en la hoja
     const row = [
       id,                       // A - ID
-      0,                        // B - Versión inicial
-      codigo_sku,               // C - Código SKU
-      descripcion_sku,          // D - Descripción SKU
-      categoria_insumo,         // E - Categoría Insumo
-      codigo_insumo,            // F - Código Insumo
-      descripcion_insumo,       // G - Descripción Insumo
-      cantidad_requerida,       // H - Cantidad Requerida
-      cantidad_piezas_por_caja, // I - Cantidad Piezas por Caja
-      consumo_por_caja,         // J - Consumo por Caja
-      unidad_medida,            // K - Unidad Medida
-      createdBy,                // L - Creado Por
-      createdAt,                // M - Fecha Creación
-      updatedBy,                // N - Actualizado Por
-      updatedAt,                // O - Fecha Actualización
-      'Activo'                  // P - Estado
+      0,                        // B - Versión
+      codigo_sku,               // C
+      descripcion_sku,          // D
+      categoria_insumo,         // E
+      codigo_insumo,            // F
+      descripcion_insumo,       // G
+      cantidad_requerida,       // H
+      cantidad_piezas_por_caja, // I
+      consumo_por_caja,         // J
+      unidad_medida,            // K
+      createdBy,                // L
+      createdAt,                // M
+      updatedBy,                // N
+      updatedAt,                // O
+      'Activo'                  // P
     ];
 
     sheet.appendRow(row);
