@@ -14,16 +14,16 @@ export default function DashboardScreen() {
   const { products } = useProduct();
   const router = useRouter();
 
-  const validRecords = records.filter((record: any): record is BOMRecord => 
-    record && 
-    typeof record === 'object' && 
-    record.descripcion_insumo
-  );
+  const validRecords = records.filter((record: any): record is BOMRecord => {
+    if (!record || typeof record !== 'object') return false;
+    if (!record.descripcion_insumo || typeof record.descripcion_insumo !== 'string') return false;
+    return true;
+  });
   
-  const validProducts = products.filter((product: any): product is ProductInfo => 
-    product && 
-    typeof product === 'object'
-  );
+  const validProducts = products.filter((product: any): product is ProductInfo => {
+    if (!product || typeof product !== 'object') return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     await logout();
