@@ -15,6 +15,23 @@ import { useProduct } from '@/context/ProductContext';
 import { ProductInfo } from '@/types/product';
 import { CARNIC_COLORS } from '@/constants/colors';
 
+// Helper seguro para formatear números
+const formatNumber = (value: any, decimals: number = 2): string => {
+  if (value === null || value === undefined || value === '') return '-';
+
+  const num =
+    typeof value === 'number'
+      ? value
+      : Number(String(value).replace(',', '.')); // por si viene con coma
+
+  if (Number.isNaN(num)) {
+    // si no se puede convertir, regresamos el valor como texto
+    return String(value);
+  }
+
+  return num.toFixed(decimals);
+};
+
 export default function ProductInfoScreen() {
   const { products, deleteProduct } = useProduct();
   const router = useRouter();
@@ -27,9 +44,9 @@ export default function ProductInfoScreen() {
     const query = searchQuery.toLowerCase();
     return products.filter(
       (p: ProductInfo) =>
-        p.codigo.toLowerCase().includes(query) ||
-        p.nombre_producto.toLowerCase().includes(query) ||
-        p.sala_origen.toLowerCase().includes(query)
+        (p.codigo || '').toLowerCase().includes(query) ||
+        (p.nombre_producto || '').toLowerCase().includes(query) ||
+        (p.sala_origen || '').toLowerCase().includes(query)
     );
   }, [products, searchQuery]);
 
@@ -102,7 +119,9 @@ export default function ProductInfoScreen() {
               <View style={styles.productActions}>
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => router.push({ pathname: '/create-product', params: { edit: product.id } })}
+                  onPress={() =>
+                    router.push({ pathname: '/create-product', params: { edit: product.id } })
+                  }
                 >
                   <Edit2 size={18} color={CARNIC_COLORS.secondary} />
                 </TouchableOpacity>
@@ -121,25 +140,29 @@ export default function ProductInfoScreen() {
               {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Paquetes por Caja:</Text>
-                  <Text style={styles.detailValue}>{product.cantidad_paquetes_por_caja}</Text>
+                  <Text style={styles.detailValue}>
+                    {product.cantidad_paquetes_por_caja ?? '-'}
+                  </Text>
                 </View>
               )}
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Peso Promedio por Caja:</Text>
-                <Text style={styles.detailValue}>{product.peso_por_caja.toFixed(2)} lb</Text>
+                <Text style={styles.detailValue}>
+                  {formatNumber(product.peso_por_caja, 2)} lb
+                </Text>
               </View>
               {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Peso Promedio/Paquete:</Text>
                   <Text style={styles.detailValue}>
-                    {product.peso_promedio_por_paquete.toFixed(2)} lb
+                    {formatNumber(product.peso_promedio_por_paquete, 2)} lb
                   </Text>
                 </View>
               )}
               {product.tipo_empaque === 'THERMOPACK' && (
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Size Empaque:</Text>
-                  <Text style={styles.detailValue}>{product.size_empaque}</Text>
+                  <Text style={styles.detailValue}>{product.size_empaque || '-'}</Text>
                 </View>
               )}
               <View style={styles.detailRow}>
@@ -150,7 +173,10 @@ export default function ProductInfoScreen() {
 
             <View style={styles.productFooter}>
               <Text style={styles.footerText}>
-                Creado por {product.createdBy} • {new Date(product.createdAt).toLocaleDateString()}
+                Creado por {product.createdBy || 'Desconocido'} •{' '}
+                {product.createdAt
+                  ? new Date(product.createdAt).toLocaleDateString()
+                  : '-'}
               </Text>
             </View>
           </View>
@@ -430,3 +456,4 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
