@@ -850,7 +850,7 @@ export default function CreateRecordScreen() {
                     {isCheckboxCategory && isChecked && (
                       <View style={styles.autoFilledNotice}>
                         <Text style={styles.autoFilledNoticeText}>
-                          ✓ Valor automático: {categoria === 'Fleje' ? '0.00045' : '0.00294'}
+                          ✓ Valor automático: {categoria === 'Fleje' ? '1.6' : '0.00294'}
                         </Text>
                       </View>
                     )}
