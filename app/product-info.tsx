@@ -15,23 +15,6 @@ import { useProduct } from '@/context/ProductContext';
 import { ProductInfo } from '@/types/product';
 import { CARNIC_COLORS } from '@/constants/colors';
 
-// Helper seguro para formatear números
-const formatNumber = (value: any, decimals: number = 2): string => {
-  if (value === null || value === undefined || value === '') return '-';
-
-  const num =
-    typeof value === 'number'
-      ? value
-      : Number(String(value).replace(',', '.')); // por si viene con coma
-
-  if (Number.isNaN(num)) {
-    // si no se puede convertir, regresamos el valor como texto
-    return String(value);
-  }
-
-  return num.toFixed(decimals);
-};
-
 export default function ProductInfoScreen() {
   const { products, deleteProduct } = useProduct();
   const router = useRouter();
@@ -78,10 +61,7 @@ export default function ProductInfoScreen() {
         }}
       />
 
-      <LinearGradient
-        colors={['#0ea5e9', '#0284c7']}
-        style={styles.header}
-      >
+      <LinearGradient colors={['#0ea5e9', '#0284c7']} style={styles.header}>
         <Text style={styles.headerTitle}>Productos Registrados</Text>
         <Text style={styles.headerSubtitle}>
           {filteredProducts.length} productos encontrados
@@ -107,80 +87,110 @@ export default function ProductInfoScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {filteredProducts.map((product: ProductInfo) => (
-          <View key={product.id} style={styles.productCard}>
-            <View style={styles.productHeader}>
-              <View style={styles.productHeaderLeft}>
-                <Text style={styles.productCode}>{product.codigo}</Text>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{product.tipo_empaque}</Text>
+        {filteredProducts.map((product: ProductInfo, index: number) => {
+          // ==== FIX 1: key siempre única aunque id venga vacío ====
+          const safeKey =
+            (product.id && product.id.toString()) ||
+            `${product.codigo || 'sin-codigo'}-${index}`;
+
+          // ==== FIX 2: manejar strings/undefined en toFixed ====
+          const pesoCajaNumber = Number(product.peso_por_caja);
+          const pesoCajaText = !isNaN(pesoCajaNumber)
+            ? `${pesoCajaNumber.toFixed(2)} lb`
+            : `${product.peso_por_caja ?? 'N/D'} lb`;
+
+          const pesoPaqueteNumber =
+            product.peso_promedio_por_paquete !== undefined &&
+            product.peso_promedio_por_paquete !== null
+              ? Number(product.peso_promedio_por_paquete)
+              : NaN;
+
+          const pesoPaqueteText = !isNaN(pesoPaqueteNumber)
+            ? `${pesoPaqueteNumber.toFixed(2)} lb`
+            : `${product.peso_promedio_por_paquete ?? 'N/D'} lb`;
+
+          const paquetesPorCajaText =
+            product.cantidad_paquetes_por_caja !== undefined &&
+            product.cantidad_paquetes_por_caja !== null
+              ? String(product.cantidad_paquetes_por_caja)
+              : 'N/D';
+
+          return (
+            <View key={safeKey} style={styles.productCard}>
+              <View style={styles.productHeader}>
+                <View style={styles.productHeaderLeft}>
+                  <Text style={styles.productCode}>{product.codigo}</Text>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{product.tipo_empaque}</Text>
+                  </View>
+                </View>
+                <View style={styles.productActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/create-product',
+                        params: { edit: product.id },
+                      })
+                    }
+                  >
+                    <Edit2 size={18} color={CARNIC_COLORS.secondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleDelete(product)}
+                  >
+                    <Trash2 size={18} color={CARNIC_COLORS.primary} />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.productActions}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() =>
-                    router.push({ pathname: '/create-product', params: { edit: product.id } })
-                  }
-                >
-                  <Edit2 size={18} color={CARNIC_COLORS.secondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleDelete(product)}
-                >
-                  <Trash2 size={18} color={CARNIC_COLORS.primary} />
-                </TouchableOpacity>
-              </View>
-            </View>
 
-            <Text style={styles.productName}>{product.nombre_producto}</Text>
+              <Text style={styles.productName}>{product.nombre_producto}</Text>
 
-            <View style={styles.productDetails}>
-              {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
+              <View style={styles.productDetails}>
+                {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Paquetes por Caja:</Text>
+                    <Text style={styles.detailValue}>{paquetesPorCajaText}</Text>
+                  </View>
+                )}
+
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Paquetes por Caja:</Text>
-                  <Text style={styles.detailValue}>
-                    {product.cantidad_paquetes_por_caja ?? '-'}
-                  </Text>
+                  <Text style={styles.detailLabel}>Peso Promedio por Caja:</Text>
+                  <Text style={styles.detailValue}>{pesoCajaText}</Text>
                 </View>
-              )}
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Peso Promedio por Caja:</Text>
-                <Text style={styles.detailValue}>
-                  {formatNumber(product.peso_por_caja, 2)} lb
+
+                {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Peso Promedio/Paquete:</Text>
+                    <Text style={styles.detailValue}>{pesoPaqueteText}</Text>
+                  </View>
+                )}
+
+                {product.tipo_empaque === 'THERMOPACK' && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Size Empaque:</Text>
+                    <Text style={styles.detailValue}>{product.size_empaque}</Text>
+                  </View>
+                )}
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Sala Origen:</Text>
+                  <Text style={styles.detailValue}>{product.sala_origen}</Text>
+                </View>
+              </View>
+
+              <View style={styles.productFooter}>
+                <Text style={styles.footerText}>
+                  Creado por {product.createdBy || 'N/D'} •{' '}
+                  {product.createdAt
+                    ? new Date(product.createdAt).toLocaleDateString()
+                    : 'Fecha N/D'}
                 </Text>
               </View>
-              {product.tipo_empaque !== 'BULK PACK (GRANEL)' && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Peso Promedio/Paquete:</Text>
-                  <Text style={styles.detailValue}>
-                    {formatNumber(product.peso_promedio_por_paquete, 2)} lb
-                  </Text>
-                </View>
-              )}
-              {product.tipo_empaque === 'THERMOPACK' && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Size Empaque:</Text>
-                  <Text style={styles.detailValue}>{product.size_empaque || '-'}</Text>
-                </View>
-              )}
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Sala Origen:</Text>
-                <Text style={styles.detailValue}>{product.sala_origen}</Text>
-              </View>
             </View>
-
-            <View style={styles.productFooter}>
-              <Text style={styles.footerText}>
-                Creado por {product.createdBy || 'Desconocido'} •{' '}
-                {product.createdAt
-                  ? new Date(product.createdAt).toLocaleDateString()
-                  : '-'}
-              </Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
 
         {filteredProducts.length === 0 && (
           <View style={styles.emptyState}>
@@ -198,10 +208,7 @@ export default function ProductInfoScreen() {
         onPress={() => router.push('/create-product')}
         activeOpacity={0.9}
       >
-        <LinearGradient
-          colors={['#0ea5e9', '#0284c7']}
-          style={styles.fabGradient}
-        >
+        <LinearGradient colors={['#0ea5e9', '#0284c7']} style={styles.fabGradient}>
           <Plus size={28} color="#fff" strokeWidth={3} />
         </LinearGradient>
       </TouchableOpacity>
@@ -216,7 +223,8 @@ export default function ProductInfoScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Confirmar Eliminación</Text>
             <Text style={styles.modalText}>
-              ¿Estás seguro de eliminar el producto &quot;{selectedProduct?.nombre_producto}&quot;?
+              ¿Estás seguro de eliminar el producto "
+              {selectedProduct?.nombre_producto}"?
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
