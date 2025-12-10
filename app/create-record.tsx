@@ -210,7 +210,7 @@ export default function CreateRecordScreen() {
 
   const getCategoriesForPackageType = (tipoEmpaque: string): string[] => {
     switch (tipoEmpaque) {
-      case 'BULK PACK':
+      case 'BULK PACK (GRANEL)':
         return [
           'Bolsa Master',
           'Etiqueta Caja',
