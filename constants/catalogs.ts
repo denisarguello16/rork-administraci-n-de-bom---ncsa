@@ -455,7 +455,7 @@ export const CATALOGO_INSUMOS: Insumo[] = [
   {
     codigo: 'Varios',
     descripcion: 'TAPA KRAFT 60 ALTA',
-    categoria: 'TapaCarton Corrugado',
+    categoria: 'Tapa Carton Corrugado',
     contenido_por_unidad: 1,
     unidad_medida: 'UND',
   },
