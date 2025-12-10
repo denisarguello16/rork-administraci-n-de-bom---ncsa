@@ -301,7 +301,7 @@ export default function CreateRecordScreen() {
     if (checked) {
       let autoConsumoPorCaja = 0;
       if (categoria === 'Fleje') {
-        autoConsumoPorCaja = 0.00045;
+        autoConsumoPorCaja = 1.64565;
       } else if (categoria === 'Grapa') {
         autoConsumoPorCaja = 0.00294;
       }
