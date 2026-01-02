@@ -16,7 +16,7 @@ export const [ProductContext, useProduct] = createContextHook(() => {
       
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getProducts`, {
           signal: controller.signal,
