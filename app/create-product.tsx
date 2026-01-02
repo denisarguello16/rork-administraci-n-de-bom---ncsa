@@ -40,6 +40,7 @@ export default function CreateProductScreen() {
   const [showTipoEmpaquePicker, setShowTipoEmpaquePicker] = useState<boolean>(false);
   const [showSizeEmpaquePicker, setShowSizeEmpaquePicker] = useState<boolean>(false);
   const [showSalaOrigenPicker, setShowSalaOrigenPicker] = useState<boolean>(false);
+  const [codigoError, setCodigoError] = useState<string>('');
 
   useEffect(() => {
     if (isEditing) {
@@ -66,6 +67,19 @@ export default function CreateProductScreen() {
   const handleCodigoChange = (text: string) => {
     const formatted = formatCodigoProducto(text);
     setCodigo(formatted);
+    
+    if (formatted.trim()) {
+      const exists = products.some((p: ProductInfo) => 
+        p.codigo === formatted && (!isEditing || p.id !== editId)
+      );
+      if (exists) {
+        setCodigoError('Este código ya existe en los registros');
+      } else {
+        setCodigoError('');
+      }
+    } else {
+      setCodigoError('');
+    }
   };
 
   const calculatePesoPromedioPaquete = (): number => {
@@ -83,6 +97,8 @@ export default function CreateProductScreen() {
   const isThermopack = tipoEmpaque === 'THERMOPACK';
 
   const isFormValid = () => {
+    if (codigoError) return false;
+    
     const baseValid = codigo.trim() && nombreProducto.trim() && pesoPorCaja.trim() && tipoEmpaque && salaOrigen && parseFloat(pesoPorCaja) > 0;
     
     if (isBulkPack) {
@@ -231,7 +247,10 @@ export default function CreateProductScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Código del Producto</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  codigoError && styles.inputError
+                ]}
                 placeholder="Ej: 1234"
                 placeholderTextColor={CARNIC_COLORS.gray[400]}
                 value={codigo}
@@ -239,6 +258,9 @@ export default function CreateProductScreen() {
                 keyboardType="numeric"
                 maxLength={5}
               />
+              {codigoError ? (
+                <Text style={styles.errorText}>{codigoError}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputGroup}>
@@ -487,6 +509,15 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: CARNIC_COLORS.gray[500],
+    marginTop: -4,
+  },
+  inputError: {
+    borderColor: CARNIC_COLORS.primary,
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: CARNIC_COLORS.primary,
     marginTop: -4,
   },
 });
