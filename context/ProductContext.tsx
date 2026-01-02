@@ -15,7 +15,14 @@ export const [ProductContext, useProduct] = createContextHook(() => {
       console.log('Cargando productos desde Google Sheets...');
       
       try {
-        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getProducts`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getProducts`, {
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
         const result = await response.json();
         
         console.log('Respuesta de Google Sheets (productos):', result);
@@ -31,10 +38,16 @@ export const [ProductContext, useProduct] = createContextHook(() => {
         }
       } catch (error) {
         console.error('Error al cargar productos desde Google Sheets, usando cache local:', error);
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        try {
+          const stored = await AsyncStorage.getItem(STORAGE_KEY);
+          return stored ? JSON.parse(stored) : [];
+        } catch (cacheError) {
+          console.error('Error loading from cache:', cacheError);
+          return [];
+        }
       }
     },
+    retry: 1,
     refetchInterval: 30000,
   });
 

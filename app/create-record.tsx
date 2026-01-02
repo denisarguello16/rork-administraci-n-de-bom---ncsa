@@ -248,6 +248,7 @@ export default function CreateRecordScreen() {
           'Empaque Primario',
           'Etiqueta Caja',
           'Etiqueta Caja 2',
+          'Etiqueta Paquetería',
           'Fleje',
           'Fondo Carton Corrugado',
           'Tapa Carton Corrugado',

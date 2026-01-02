@@ -48,9 +48,15 @@ export const [BOMContext, useBOM] = createContextHook(() => {
   const userQuery = useQuery({
     queryKey: ['currentUser'],
     queryFn: async () => {
-      const stored = await AsyncStorage.getItem(USER_KEY);
-      return stored || '';
+      try {
+        const stored = await AsyncStorage.getItem(USER_KEY);
+        return stored || '';
+      } catch (error) {
+        console.error('Error loading user from storage:', error);
+        return '';
+      }
     },
+    retry: 1,
   });
 
   // Registros del BOM
@@ -61,9 +67,15 @@ export const [BOMContext, useBOM] = createContextHook(() => {
 
       // 1) Intentar desde Google Script
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const response = await fetch(GOOGLE_SCRIPT_URL + '?action=getBOMRecords', {
           method: 'GET',
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         const result = await response.json();
         console.log('Respuesta de Google Sheets:', result);
@@ -88,14 +100,20 @@ export const [BOMContext, useBOM] = createContextHook(() => {
       }
 
       // 2) Fallback: cache local
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      const cached = stored ? JSON.parse(stored) : [];
-      const validCached = sanitizeRecords(cached);
-      console.log(
-        `Registros válidos cargados desde cache local: ${validCached.length}`
-      );
-      return validCached;
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const cached = stored ? JSON.parse(stored) : [];
+        const validCached = sanitizeRecords(cached);
+        console.log(
+          `Registros válidos cargados desde cache local: ${validCached.length}`
+        );
+        return validCached;
+      } catch (error) {
+        console.error('Error loading from local cache:', error);
+        return [];
+      }
     },
+    retry: 1,
     refetchInterval: 30000,
   });
 
