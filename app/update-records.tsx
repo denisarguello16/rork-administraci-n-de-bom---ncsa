@@ -124,7 +124,11 @@ export default function UpdateRecordsScreen() {
     );
     
     let cantidadCalculada = 0;
-    if (usaConsumoPorPieza) {
+    if (currentInsumo.categoria_insumo === 'Etiqueta Paquetería') {
+      if (currentInsumo.cantidad_piezas_por_caja > 0) {
+        cantidadCalculada = currentInsumo.cantidad_piezas_por_caja / insumo.contenido_por_unidad;
+      }
+    } else if (usaConsumoPorPieza) {
       if (currentInsumo.cantidad_piezas_por_caja > 0 && currentInsumo.consumo_por_caja > 0) {
         cantidadCalculada =
           (currentInsumo.cantidad_piezas_por_caja * currentInsumo.consumo_por_caja) /
@@ -152,7 +156,11 @@ export default function UpdateRecordsScreen() {
       );
       
       let cantidadCalculada = 0;
-      if (usaConsumoPorPieza) {
+      if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
+        if (insumo.cantidad_piezas_por_caja > 0) {
+          cantidadCalculada = insumo.cantidad_piezas_por_caja / insumo.selectedInsumo.contenido_por_unidad;
+        }
+      } else if (usaConsumoPorPieza) {
         if (insumo.cantidad_piezas_por_caja > 0 && consumo > 0) {
           cantidadCalculada =
             (insumo.cantidad_piezas_por_caja * consumo) /
@@ -216,7 +224,11 @@ export default function UpdateRecordsScreen() {
         }
 
         let cantidadCalculada = 0;
-        if (usaConsumoPorPieza) {
+        if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
+          if (nuevaCantidadPiezas > 0) {
+            cantidadCalculada = nuevaCantidadPiezas / insumo.selectedInsumo.contenido_por_unidad;
+          }
+        } else if (usaConsumoPorPieza) {
           if (nuevaCantidadPiezas > 0 && nuevoConsumoPorCaja > 0) {
             cantidadCalculada =
               (nuevaCantidadPiezas * nuevoConsumoPorCaja) /
@@ -696,7 +708,9 @@ export default function UpdateRecordsScreen() {
                         </Text>
                         {insumo.selectedInsumo && (
                           <Text style={styles.calculatedHint}>
-                            {usaConsumoPorPieza
+                            {insumo.categoria_insumo === 'Etiqueta Paquetería'
+                              ? `= ${insumo.cantidad_piezas_por_caja} / ${insumo.selectedInsumo.contenido_por_unidad}`
+                              : usaConsumoPorPieza
                               ? `= (${insumo.cantidad_piezas_por_caja} × ${insumo.consumo_por_caja}) / ${insumo.selectedInsumo.contenido_por_unidad}`
                               : `= ${insumo.consumo_por_caja} / ${insumo.selectedInsumo.contenido_por_unidad}`}
                           </Text>
