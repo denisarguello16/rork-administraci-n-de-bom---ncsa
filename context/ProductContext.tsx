@@ -11,6 +11,7 @@ export const [ProductContext, useProduct] = createContextHook(() => {
 
   const productsQuery = useQuery({
     queryKey: ['products'],
+    initialData: [],
     queryFn: async () => {
       console.log('Cargando productos desde Google Sheets...');
       

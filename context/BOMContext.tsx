@@ -62,6 +62,7 @@ export const [BOMContext, useBOM] = createContextHook(() => {
   // Registros del BOM
   const recordsQuery = useQuery({
     queryKey: ['bomRecords'],
+    initialData: [],
     queryFn: async () => {
       console.log('Cargando registros desde Google Sheets...');
 
