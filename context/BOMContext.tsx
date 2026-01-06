@@ -65,17 +65,18 @@ export const [BOMContext, useBOM] = createContextHook(() => {
     queryFn: async () => {
       console.log('Cargando registros desde Google Sheets...');
 
-      // 1) Intentar desde Google Script
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 25000);
 
         const response = await fetch(GOOGLE_SCRIPT_URL + '?action=getBOMRecords', {
           method: 'GET',
           signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
-
-        clearTimeout(timeoutId);
 
         const result = await response.json();
         console.log('Respuesta de Google Sheets:', result);
@@ -92,14 +93,15 @@ export const [BOMContext, useBOM] = createContextHook(() => {
         console.warn(
           'No se pudieron cargar registros válidos de Google Sheets (success=false), usando cache local'
         );
-      } catch (error) {
-        console.error(
-          'Error al cargar desde Google Sheets, usando cache local:',
-          error
-        );
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error(
+            'Error al cargar desde Google Sheets, usando cache local:',
+            error
+          );
+        }
       }
 
-      // 2) Fallback: cache local
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         const cached = stored ? JSON.parse(stored) : [];
@@ -114,7 +116,7 @@ export const [BOMContext, useBOM] = createContextHook(() => {
       }
     },
     retry: 1,
-    refetchInterval: 30000,
+    staleTime: 60000,
   });
 
   // Guardar usuario
@@ -221,7 +223,9 @@ const addRecordMutation = useMutation({
         console.log('Enviando petición...');
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 25000);
 
         const response = await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
@@ -230,9 +234,9 @@ const addRecordMutation = useMutation({
           },
           body: JSON.stringify(requestBody),
           signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
-
-        clearTimeout(timeoutId);
 
         console.log('Response status:', response.status);
         console.log('Response ok:', response.ok);
