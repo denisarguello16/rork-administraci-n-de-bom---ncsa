@@ -11,7 +11,6 @@ export const [ProductContext, useProduct] = createContextHook(() => {
 
   const productsQuery = useQuery({
     queryKey: ['products'],
-    initialData: [],
     queryFn: async () => {
       console.log('Cargando productos desde Google Sheets...');
       
@@ -41,10 +40,8 @@ export const [ProductContext, useProduct] = createContextHook(() => {
           return stored ? JSON.parse(stored) : [];
         }
       } catch (error: any) {
-        if (error?.name === 'AbortError') {
-          console.log('Timeout al cargar productos desde Google Sheets, usando cache local');
-        } else {
-          console.log('Error al cargar productos desde Google Sheets, usando cache local:', error?.message || String(error));
+        if (error?.name !== 'AbortError') {
+          console.error('Error al cargar productos desde Google Sheets, usando cache local:', error);
         }
         try {
           const stored = await AsyncStorage.getItem(STORAGE_KEY);

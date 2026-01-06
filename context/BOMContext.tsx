@@ -62,7 +62,6 @@ export const [BOMContext, useBOM] = createContextHook(() => {
   // Registros del BOM
   const recordsQuery = useQuery({
     queryKey: ['bomRecords'],
-    initialData: [],
     queryFn: async () => {
       console.log('Cargando registros desde Google Sheets...');
 
@@ -95,12 +94,10 @@ export const [BOMContext, useBOM] = createContextHook(() => {
           'No se pudieron cargar registros válidos de Google Sheets (success=false), usando cache local'
         );
       } catch (error: any) {
-        if (error?.name === 'AbortError') {
-          console.log('Timeout al cargar desde Google Sheets, usando cache local');
-        } else {
-          console.log(
+        if (error?.name !== 'AbortError') {
+          console.error(
             'Error al cargar desde Google Sheets, usando cache local:',
-            error?.message || String(error)
+            error
           );
         }
       }
