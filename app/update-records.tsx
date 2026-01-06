@@ -72,7 +72,6 @@ export default function UpdateRecordsScreen() {
   
   const previousPaquetesRef = useRef<number | null>(null);
   const lastCalculatedWeightRef = useRef<number | null>(null);
-  const originalPaquetesRef = useRef<number | null>(null);
 
   const uniqueCodigos = Array.from(
     new Set(records.map((r) => r.codigo_sku))
@@ -124,11 +123,7 @@ export default function UpdateRecordsScreen() {
     );
     
     let cantidadCalculada = 0;
-    if (currentInsumo.categoria_insumo === 'Etiqueta Paquetería') {
-      if (currentInsumo.cantidad_piezas_por_caja > 0) {
-        cantidadCalculada = currentInsumo.cantidad_piezas_por_caja / insumo.contenido_por_unidad;
-      }
-    } else if (usaConsumoPorPieza) {
+    if (usaConsumoPorPieza) {
       if (currentInsumo.cantidad_piezas_por_caja > 0 && currentInsumo.consumo_por_caja > 0) {
         cantidadCalculada =
           (currentInsumo.cantidad_piezas_por_caja * currentInsumo.consumo_por_caja) /
@@ -156,11 +151,7 @@ export default function UpdateRecordsScreen() {
       );
       
       let cantidadCalculada = 0;
-      if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
-        if (insumo.cantidad_piezas_por_caja > 0) {
-          cantidadCalculada = insumo.cantidad_piezas_por_caja / insumo.selectedInsumo.contenido_por_unidad;
-        }
-      } else if (usaConsumoPorPieza) {
+      if (usaConsumoPorPieza) {
         if (insumo.cantidad_piezas_por_caja > 0 && consumo > 0) {
           cantidadCalculada =
             (insumo.cantidad_piezas_por_caja * consumo) /
@@ -178,23 +169,24 @@ export default function UpdateRecordsScreen() {
   };
 
   useEffect(() => {
-    if (!productInfo || originalPaquetesRef.current === null) return;
+    if (!productInfo) return;
 
     const cantidadPaquetesNueva = productEdits.cantidad_paquetes_por_caja ?? productInfo.cantidad_paquetes_por_caja;
-    const cantidadPaquetesOriginal = originalPaquetesRef.current;
+    const cantidadPaquetesOriginal = productInfo.cantidad_paquetes_por_caja;
 
     if (previousPaquetesRef.current === null) {
-      previousPaquetesRef.current = cantidadPaquetesNueva;
+      previousPaquetesRef.current = cantidadPaquetesOriginal;
       return;
     }
 
     if (cantidadPaquetesNueva === previousPaquetesRef.current) return;
 
+    const paquetesAnteriores = previousPaquetesRef.current;
     previousPaquetesRef.current = cantidadPaquetesNueva;
 
     console.log('========================================');
     console.log('Recalculando cantidades de insumos por cambio en cantidad de paquetes por caja');
-    console.log('Cantidad original:', cantidadPaquetesOriginal);
+    console.log('Cantidad anterior:', paquetesAnteriores);
     console.log('Cantidad nueva:', cantidadPaquetesNueva);
     console.log('========================================');
 
@@ -218,17 +210,13 @@ export default function UpdateRecordsScreen() {
         } else if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
           console.log(`Etiqueta Paquetería - Actualizando piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${nuevaCantidadPiezas}`);
-        } else if (usaConsumoPorPieza) {
+        } else if (usaConsumoPorPieza && insumo.cantidad_piezas_por_caja === paquetesAnteriores) {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
           console.log(`${insumo.categoria_insumo} - Actualizando piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${nuevaCantidadPiezas}`);
         }
 
         let cantidadCalculada = 0;
-        if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
-          if (nuevaCantidadPiezas > 0) {
-            cantidadCalculada = nuevaCantidadPiezas / insumo.selectedInsumo.contenido_por_unidad;
-          }
-        } else if (usaConsumoPorPieza) {
+        if (usaConsumoPorPieza) {
           if (nuevaCantidadPiezas > 0 && nuevoConsumoPorCaja > 0) {
             cantidadCalculada =
               (nuevaCantidadPiezas * nuevoConsumoPorCaja) /
@@ -248,11 +236,8 @@ export default function UpdateRecordsScreen() {
         };
 
         console.log(`Insumo: ${insumo.descripcion_insumo}`);
-        console.log(`  Categoría: ${insumo.categoria_insumo}`);
-        console.log(`  Usa consumo por pieza: ${usaConsumoPorPieza}`);
         console.log(`  Piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${actualizado.cantidad_piezas_por_caja}`);
         console.log(`  Consumo por caja: ${insumo.consumo_por_caja} → ${actualizado.consumo_por_caja}`);
-        console.log(`  Contenido por unidad: ${insumo.selectedInsumo.contenido_por_unidad}`);
         console.log(`  Cantidad requerida: ${insumo.cantidad_requerida.toFixed(6)} → ${actualizado.cantidad_requerida.toFixed(6)}`);
 
         return actualizado;
@@ -294,7 +279,6 @@ export default function UpdateRecordsScreen() {
 
     previousPaquetesRef.current = null;
     lastCalculatedWeightRef.current = null;
-    originalPaquetesRef.current = productData.cantidad_paquetes_por_caja;
     setSelectedCodigo(codigo);
     setProductInfo(productData);
     setProductEdits({});
@@ -708,9 +692,7 @@ export default function UpdateRecordsScreen() {
                         </Text>
                         {insumo.selectedInsumo && (
                           <Text style={styles.calculatedHint}>
-                            {insumo.categoria_insumo === 'Etiqueta Paquetería'
-                              ? `= ${insumo.cantidad_piezas_por_caja} / ${insumo.selectedInsumo.contenido_por_unidad}`
-                              : usaConsumoPorPieza
+                            {usaConsumoPorPieza
                               ? `= (${insumo.cantidad_piezas_por_caja} × ${insumo.consumo_por_caja}) / ${insumo.selectedInsumo.contenido_por_unidad}`
                               : `= ${insumo.consumo_por_caja} / ${insumo.selectedInsumo.contenido_por_unidad}`}
                           </Text>
