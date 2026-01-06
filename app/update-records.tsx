@@ -71,6 +71,7 @@ export default function UpdateRecordsScreen() {
   const [showInsumoModal, setShowInsumoModal] = useState(false);
   
   const previousPaquetesRef = useRef<number | null>(null);
+  const lastCalculatedWeightRef = useRef<number | null>(null);
 
   const uniqueCodigos = Array.from(
     new Set(records.map((r) => r.codigo_sku))
@@ -179,10 +180,11 @@ export default function UpdateRecordsScreen() {
 
     if (cantidadPaquetesNueva === previousPaquetesRef.current) return;
 
+    const paquetesAnteriores = previousPaquetesRef.current;
     previousPaquetesRef.current = cantidadPaquetesNueva;
 
     console.log('Recalculando cantidades de insumos por cambio en cantidad de paquetes por caja');
-    console.log('Cantidad anterior:', cantidadPaquetesOriginal);
+    console.log('Cantidad anterior:', paquetesAnteriores);
     console.log('Cantidad nueva:', cantidadPaquetesNueva);
 
     setInsumos((currentInsumos) => {
@@ -200,7 +202,7 @@ export default function UpdateRecordsScreen() {
           nuevoConsumoPorCaja = cantidadPaquetesNueva;
         } else if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
-        } else if (usaConsumoPorPieza && insumo.cantidad_piezas_por_caja === cantidadPaquetesOriginal) {
+        } else if (usaConsumoPorPieza && insumo.cantidad_piezas_por_caja === paquetesAnteriores) {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
         }
 
@@ -240,6 +242,26 @@ export default function UpdateRecordsScreen() {
     });
   }, [productEdits.cantidad_paquetes_por_caja, productInfo, insumos.length]);
 
+  useEffect(() => {
+    if (!productInfo) return;
+
+    const pesoPorCaja = productEdits.peso_por_caja ?? productInfo.peso_por_caja;
+    const cantidadPaquetes = productEdits.cantidad_paquetes_por_caja ?? productInfo.cantidad_paquetes_por_caja;
+
+    if (cantidadPaquetes > 0) {
+      const pesoCalculado = pesoPorCaja / cantidadPaquetes;
+      
+      if (pesoCalculado !== lastCalculatedWeightRef.current) {
+        console.log('Recalculando peso promedio por paquete:', pesoCalculado);
+        lastCalculatedWeightRef.current = pesoCalculado;
+        setProductEdits((prev) => ({
+          ...prev,
+          peso_promedio_por_paquete: pesoCalculado,
+        }));
+      }
+    }
+  }, [productEdits.peso_por_caja, productEdits.cantidad_paquetes_por_caja, productInfo]);
+
   const handleOpenProduct = (codigo: string) => {
     const productData = products.find((p: ProductInfo) => p.codigo === codigo);
     const insumosData = records.filter((r) => r.codigo_sku === codigo);
@@ -250,6 +272,7 @@ export default function UpdateRecordsScreen() {
     }
 
     previousPaquetesRef.current = null;
+    lastCalculatedWeightRef.current = null;
     setSelectedCodigo(codigo);
     setProductInfo(productData);
     setProductEdits({});
