@@ -169,13 +169,14 @@ export default function UpdateRecordsScreen() {
   };
 
   useEffect(() => {
-    if (!productInfo || insumos.length === 0) return;
+    if (!productInfo) return;
 
     const cantidadPaquetesNueva = productEdits.cantidad_paquetes_por_caja ?? productInfo.cantidad_paquetes_por_caja;
     const cantidadPaquetesOriginal = productInfo.cantidad_paquetes_por_caja;
 
     if (previousPaquetesRef.current === null) {
       previousPaquetesRef.current = cantidadPaquetesOriginal;
+      return;
     }
 
     if (cantidadPaquetesNueva === previousPaquetesRef.current) return;
@@ -183,13 +184,18 @@ export default function UpdateRecordsScreen() {
     const paquetesAnteriores = previousPaquetesRef.current;
     previousPaquetesRef.current = cantidadPaquetesNueva;
 
+    console.log('========================================');
     console.log('Recalculando cantidades de insumos por cambio en cantidad de paquetes por caja');
     console.log('Cantidad anterior:', paquetesAnteriores);
     console.log('Cantidad nueva:', cantidadPaquetesNueva);
+    console.log('========================================');
 
     setInsumos((currentInsumos) => {
-      return currentInsumos.map((insumo) => {
-        if (!insumo.selectedInsumo) return insumo;
+      const updatedInsumos = currentInsumos.map((insumo) => {
+        if (!insumo.selectedInsumo) {
+          console.log(`Insumo sin selectedInsumo: ${insumo.descripcion_insumo}`);
+          return insumo;
+        }
 
         const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
           insumo.categoria_insumo
@@ -200,10 +206,13 @@ export default function UpdateRecordsScreen() {
 
         if (insumo.categoria_insumo === 'Empaque Primario') {
           nuevoConsumoPorCaja = cantidadPaquetesNueva;
+          console.log(`Empaque Primario - Actualizando consumo por caja: ${insumo.consumo_por_caja} → ${nuevoConsumoPorCaja}`);
         } else if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
+          console.log(`Etiqueta Paquetería - Actualizando piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${nuevaCantidadPiezas}`);
         } else if (usaConsumoPorPieza && insumo.cantidad_piezas_por_caja === paquetesAnteriores) {
           nuevaCantidadPiezas = cantidadPaquetesNueva;
+          console.log(`${insumo.categoria_insumo} - Actualizando piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${nuevaCantidadPiezas}`);
         }
 
         let cantidadCalculada = 0;
@@ -226,21 +235,18 @@ export default function UpdateRecordsScreen() {
           cantidad_requerida: cantidadCalculada,
         };
 
-        if (
-          actualizado.cantidad_piezas_por_caja !== insumo.cantidad_piezas_por_caja ||
-          actualizado.consumo_por_caja !== insumo.consumo_por_caja ||
-          actualizado.cantidad_requerida !== insumo.cantidad_requerida
-        ) {
-          console.log(`Insumo actualizado: ${insumo.descripcion_insumo}`);
-          console.log(`  Piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${actualizado.cantidad_piezas_por_caja}`);
-          console.log(`  Consumo por caja: ${insumo.consumo_por_caja} → ${actualizado.consumo_por_caja}`);
-          console.log(`  Cantidad requerida: ${insumo.cantidad_requerida} → ${actualizado.cantidad_requerida}`);
-        }
+        console.log(`Insumo: ${insumo.descripcion_insumo}`);
+        console.log(`  Piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${actualizado.cantidad_piezas_por_caja}`);
+        console.log(`  Consumo por caja: ${insumo.consumo_por_caja} → ${actualizado.consumo_por_caja}`);
+        console.log(`  Cantidad requerida: ${insumo.cantidad_requerida.toFixed(6)} → ${actualizado.cantidad_requerida.toFixed(6)}`);
 
         return actualizado;
       });
+      
+      console.log('Total de insumos actualizados:', updatedInsumos.length);
+      return updatedInsumos;
     });
-  }, [productEdits.cantidad_paquetes_por_caja, productInfo, insumos.length]);
+  }, [productEdits.cantidad_paquetes_por_caja, productInfo]);
 
   useEffect(() => {
     if (!productInfo) return;
