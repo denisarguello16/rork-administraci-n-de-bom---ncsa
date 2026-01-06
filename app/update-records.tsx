@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -69,6 +69,8 @@ export default function UpdateRecordsScreen() {
   const [editingInsumoIndex, setEditingInsumoIndex] = useState<number | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showInsumoModal, setShowInsumoModal] = useState(false);
+  
+  const previousPaquetesRef = useRef<number | null>(null);
 
   const uniqueCodigos = Array.from(
     new Set(records.map((r) => r.codigo_sku))
@@ -165,6 +167,79 @@ export default function UpdateRecordsScreen() {
     setInsumos(updated);
   };
 
+  useEffect(() => {
+    if (!productInfo || Object.keys(productEdits).length === 0 || insumos.length === 0) return;
+
+    const cantidadPaquetesNueva = productEdits.cantidad_paquetes_por_caja ?? productInfo.cantidad_paquetes_por_caja;
+    const cantidadPaquetesOriginal = productInfo.cantidad_paquetes_por_caja;
+
+    if (previousPaquetesRef.current === null) {
+      previousPaquetesRef.current = cantidadPaquetesOriginal;
+    }
+
+    if (cantidadPaquetesNueva === previousPaquetesRef.current) return;
+
+    previousPaquetesRef.current = cantidadPaquetesNueva;
+
+    console.log('Recalculando cantidades de insumos por cambio en cantidad de paquetes por caja');
+    console.log('Cantidad anterior:', cantidadPaquetesOriginal);
+    console.log('Cantidad nueva:', cantidadPaquetesNueva);
+
+    const insumosActualizados = insumos.map((insumo) => {
+      if (!insumo.selectedInsumo) return insumo;
+
+      const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+        insumo.categoria_insumo
+      );
+
+      let nuevaCantidadPiezas = insumo.cantidad_piezas_por_caja;
+      let nuevoConsumoPorCaja = insumo.consumo_por_caja;
+
+      if (insumo.categoria_insumo === 'Empaque Primario') {
+        nuevoConsumoPorCaja = cantidadPaquetesNueva;
+      } else if (insumo.categoria_insumo === 'Etiqueta Paquetería') {
+        nuevaCantidadPiezas = cantidadPaquetesNueva;
+      } else if (usaConsumoPorPieza && insumo.cantidad_piezas_por_caja === cantidadPaquetesOriginal) {
+        nuevaCantidadPiezas = cantidadPaquetesNueva;
+      }
+
+      let cantidadCalculada = 0;
+      if (usaConsumoPorPieza) {
+        if (nuevaCantidadPiezas > 0 && nuevoConsumoPorCaja > 0) {
+          cantidadCalculada =
+            (nuevaCantidadPiezas * nuevoConsumoPorCaja) /
+            insumo.selectedInsumo.contenido_por_unidad;
+        }
+      } else {
+        if (nuevoConsumoPorCaja > 0) {
+          cantidadCalculada = nuevoConsumoPorCaja / insumo.selectedInsumo.contenido_por_unidad;
+        }
+      }
+
+      const actualizado = {
+        ...insumo,
+        cantidad_piezas_por_caja: nuevaCantidadPiezas,
+        consumo_por_caja: nuevoConsumoPorCaja,
+        cantidad_requerida: cantidadCalculada,
+      };
+
+      if (
+        actualizado.cantidad_piezas_por_caja !== insumo.cantidad_piezas_por_caja ||
+        actualizado.consumo_por_caja !== insumo.consumo_por_caja ||
+        actualizado.cantidad_requerida !== insumo.cantidad_requerida
+      ) {
+        console.log(`Insumo actualizado: ${insumo.descripcion_insumo}`);
+        console.log(`  Piezas por caja: ${insumo.cantidad_piezas_por_caja} → ${actualizado.cantidad_piezas_por_caja}`);
+        console.log(`  Consumo por caja: ${insumo.consumo_por_caja} → ${actualizado.consumo_por_caja}`);
+        console.log(`  Cantidad requerida: ${insumo.cantidad_requerida} → ${actualizado.cantidad_requerida}`);
+      }
+
+      return actualizado;
+    });
+
+    setInsumos(insumosActualizados);
+  }, [productEdits.cantidad_paquetes_por_caja, productInfo, insumos, productEdits]);
+
   const handleOpenProduct = (codigo: string) => {
     const productData = products.find((p: ProductInfo) => p.codigo === codigo);
     const insumosData = records.filter((r) => r.codigo_sku === codigo);
@@ -174,6 +249,7 @@ export default function UpdateRecordsScreen() {
       return;
     }
 
+    previousPaquetesRef.current = null;
     setSelectedCodigo(codigo);
     setProductInfo(productData);
     setProductEdits({});
