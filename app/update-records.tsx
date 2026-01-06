@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -16,13 +16,14 @@ import {
   ArrowLeft,
   Search,
   Edit,
-  Trash2,
   Package,
   X,
   ChevronDown,
+  Save,
 } from 'lucide-react-native';
 import { useBOM } from '@/context/BOMContext';
-import { BOMRecord, BOMFormData } from '@/types/bom';
+import { useProduct } from '@/context/ProductContext';
+import { ProductInfo } from '@/types/product';
 import { CARNIC_COLORS } from '@/constants/colors';
 import {
   CATEGORIAS_INSUMO,
@@ -40,231 +41,233 @@ const CATEGORIAS_CON_CONSUMO_POR_PIEZA = [
   'Papel Encerado',
 ];
 
-// ---------- TYPE GUARD PARA REGISTROS ----------
-
-const isValidBOMRecord = (record: any): record is BOMRecord => {
-  try {
-    if (!record || typeof record !== 'object') return false;
-
-    const {
-      descripcion_insumo,
-      codigo_sku,
-      descripcion_sku,
-      categoria_insumo,
-    } = record as any;
-
-    if (typeof descripcion_insumo !== 'string' || !descripcion_insumo.trim())
-      return false;
-    if (typeof codigo_sku !== 'string' || !codigo_sku.trim()) return false;
-    if (typeof descripcion_sku !== 'string' || !descripcion_sku.trim())
-      return false;
-    if (typeof categoria_insumo !== 'string' || !categoria_insumo.trim())
-      return false;
-
-    return true;
-  } catch (error) {
-    console.error('Error validando BOMRecord en pantalla:', error, record);
-    return false;
-  }
-};
+interface InsumoEdit {
+  id: string;
+  categoria_insumo: string;
+  codigo_insumo: string;
+  descripcion_insumo: string;
+  cantidad_requerida: number;
+  consumo_por_caja: number;
+  unidad_medida: string;
+  cantidad_piezas_por_caja: number;
+  selectedInsumo: Insumo | null;
+}
 
 export default function UpdateRecordsScreen() {
   const router = useRouter();
-  const { records, updateRecord, deleteRecord, isUpdatingRecord } = useBOM();
+  const { records, updateRecord, isUpdatingRecord, currentUser } = useBOM();
+  const { products, updateProduct, isUpdatingProduct } = useProduct();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedRecord, setSelectedRecord] = useState<BOMRecord | null>(null);
+  const [selectedCodigo, setSelectedCodigo] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
-  const [formData, setFormData] = useState<Partial<BOMFormData>>({});
+  
+  const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
+  const [productEdits, setProductEdits] = useState<Partial<ProductInfo>>({});
+  
+  const [insumos, setInsumos] = useState<InsumoEdit[]>([]);
+  const [editingInsumoIndex, setEditingInsumoIndex] = useState<number | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showInsumoModal, setShowInsumoModal] = useState(false);
-  const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
 
-  const safeRecords: BOMRecord[] = Array.isArray(records)
-    ? records.filter(isValidBOMRecord)
-    : [];
+  const uniqueCodigos = Array.from(
+    new Set(records.map((r) => r.codigo_sku))
+  ).sort();
 
-  const filteredRecords = safeRecords.filter((record) => {
-    try {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        record.codigo_sku.toLowerCase().includes(searchLower) ||
-        record.descripcion_sku.toLowerCase().includes(searchLower) ||
-        record.categoria_insumo.toLowerCase().includes(searchLower) ||
-        record.descripcion_insumo.toLowerCase().includes(searchLower)
-      );
-    } catch (error) {
-      console.error('Error filtrando registro:', error, record);
-      return false;
-    }
-  });
-
-  const filteredInsumos = CATALOGO_INSUMOS.filter(
-    (insumo) => insumo.categoria === formData.categoria_insumo
+  const filteredCodigos = uniqueCodigos.filter((codigo) =>
+    codigo.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const currentEditingInsumo = editingInsumoIndex !== null ? insumos[editingInsumoIndex] : null;
+  
+  const filteredInsumosForCatalog = currentEditingInsumo
+    ? CATALOGO_INSUMOS.filter(
+        (insumo) => insumo.categoria === currentEditingInsumo.categoria_insumo
+      )
+    : [];
+
   const handleSelectCategoria = (categoria: string) => {
-    updateField('categoria_insumo', categoria);
-    updateField('descripcion_insumo', '' as any);
-    updateField('codigo_insumo', '' as any);
-    setSelectedInsumo(null);
+    if (editingInsumoIndex === null) return;
+    
+    const updated = [...insumos];
+    updated[editingInsumoIndex] = {
+      ...updated[editingInsumoIndex],
+      categoria_insumo: categoria,
+      descripcion_insumo: '',
+      codigo_insumo: '',
+      selectedInsumo: null,
+    };
+    setInsumos(updated);
     setShowCategoryModal(false);
   };
 
   const handleSelectInsumo = (insumo: Insumo) => {
-    setSelectedInsumo(insumo);
-    updateField('descripcion_insumo', insumo.descripcion as any);
-    updateField('codigo_insumo', insumo.codigo as any);
-    updateField('unidad_medida', insumo.unidad_medida as any);
+    if (editingInsumoIndex === null) return;
+    
+    const updated = [...insumos];
+    const currentInsumo = updated[editingInsumoIndex];
+    
+    updated[editingInsumoIndex] = {
+      ...currentInsumo,
+      descripcion_insumo: insumo.descripcion,
+      codigo_insumo: insumo.codigo,
+      unidad_medida: insumo.unidad_medida,
+      selectedInsumo: insumo,
+    };
+    
+    const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+      currentInsumo.categoria_insumo
+    );
+    
+    let cantidadCalculada = 0;
+    if (usaConsumoPorPieza) {
+      if (currentInsumo.cantidad_piezas_por_caja > 0 && currentInsumo.consumo_por_caja > 0) {
+        cantidadCalculada =
+          (currentInsumo.cantidad_piezas_por_caja * currentInsumo.consumo_por_caja) /
+          insumo.contenido_por_unidad;
+      }
+    } else {
+      if (currentInsumo.consumo_por_caja > 0) {
+        cantidadCalculada = currentInsumo.consumo_por_caja / insumo.contenido_por_unidad;
+      }
+    }
+    
+    updated[editingInsumoIndex].cantidad_requerida = cantidadCalculada;
+    setInsumos(updated);
     setShowInsumoModal(false);
   };
 
-  const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
-    formData.categoria_insumo || ''
-  );
-
-  useEffect(() => {
-    if (selectedInsumo) {
+  const updateInsumoConsumption = (index: number, consumo: number) => {
+    const updated = [...insumos];
+    const insumo = updated[index];
+    insumo.consumo_por_caja = consumo;
+    
+    if (insumo.selectedInsumo) {
+      const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+        insumo.categoria_insumo
+      );
+      
       let cantidadCalculada = 0;
-
       if (usaConsumoPorPieza) {
-        if (
-          (formData.cantidad_piezas_por_caja || 0) > 0 &&
-          (formData.consumo_por_caja || 0) > 0
-        ) {
+        if (insumo.cantidad_piezas_por_caja > 0 && consumo > 0) {
           cantidadCalculada =
-            ((formData.cantidad_piezas_por_caja || 0) *
-              (formData.consumo_por_caja || 0)) /
-            selectedInsumo.contenido_por_unidad;
+            (insumo.cantidad_piezas_por_caja * consumo) /
+            insumo.selectedInsumo.contenido_por_unidad;
         }
       } else {
-        if ((formData.consumo_por_caja || 0) > 0) {
-          cantidadCalculada =
-            (formData.consumo_por_caja || 0) /
-            selectedInsumo.contenido_por_unidad;
+        if (consumo > 0) {
+          cantidadCalculada = consumo / insumo.selectedInsumo.contenido_por_unidad;
         }
       }
-
-      updateField('cantidad_requerida', cantidadCalculada as any);
+      insumo.cantidad_requerida = cantidadCalculada;
     }
-  }, [
-    formData.consumo_por_caja,
-    formData.cantidad_piezas_por_caja,
-    selectedInsumo,
-    usaConsumoPorPieza,
-  ]);
-
-  const updateField = <K extends keyof BOMFormData>(
-    field: K,
-    value: BOMFormData[K]
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    setInsumos(updated);
   };
 
-  const handleEdit = (record: BOMRecord) => {
-    if (!isValidBOMRecord(record)) {
-      Alert.alert('Error', 'El registro seleccionado no es válido.');
+  const handleOpenProduct = (codigo: string) => {
+    const productData = products.find((p: ProductInfo) => p.codigo === codigo);
+    const insumosData = records.filter((r) => r.codigo_sku === codigo);
+
+    if (!productData) {
+      Alert.alert('Error', 'No se encontró información del producto');
       return;
     }
 
-    setSelectedRecord(record);
-    setFormData({
-      codigo_sku: record.codigo_sku,
-      descripcion_sku: record.descripcion_sku,
-      categoria_insumo: record.categoria_insumo,
-      codigo_insumo: record.codigo_insumo,
-      descripcion_insumo: record.descripcion_insumo,
-      cantidad_requerida: record.cantidad_requerida,
-      cantidad_piezas_por_caja: record.cantidad_piezas_por_caja,
-      consumo_por_caja: record.consumo_por_caja,
-      unidad_medida: record.unidad_medida,
+    setSelectedCodigo(codigo);
+    setProductInfo(productData);
+    setProductEdits({});
+
+    const insumosEdit: InsumoEdit[] = insumosData.map((record) => {
+      const catalogInsumo = CATALOGO_INSUMOS.find(
+        (i) => i.codigo === record.codigo_insumo
+      );
+      return {
+        id: record.id,
+        categoria_insumo: record.categoria_insumo,
+        codigo_insumo: record.codigo_insumo,
+        descripcion_insumo: record.descripcion_insumo,
+        cantidad_requerida: record.cantidad_requerida,
+        consumo_por_caja: record.consumo_por_caja,
+        unidad_medida: record.unidad_medida,
+        cantidad_piezas_por_caja: record.cantidad_piezas_por_caja,
+        selectedInsumo: catalogInsumo || null,
+      };
     });
 
-    const insumo = CATALOGO_INSUMOS.find(
-      (i) => i.codigo === record.codigo_insumo
-    );
-    if (insumo) {
-      setSelectedInsumo(insumo);
-    } else {
-      setSelectedInsumo(null);
-    }
-
+    setInsumos(insumosEdit);
     setEditModalVisible(true);
   };
 
-  const handleUpdate = async () => {
-    if (!selectedRecord) return;
-
-    if (!formData.categoria_insumo?.trim()) {
-      Alert.alert('Error', 'La categoría de insumo es requerida');
-      return;
-    }
-    if (!formData.descripcion_insumo?.trim()) {
-      Alert.alert('Error', 'La descripción de insumo es requerida');
-      return;
-    }
-    if ((formData.consumo_por_caja || 0) <= 0) {
-      Alert.alert(
-        'Error',
-        usaConsumoPorPieza
-          ? 'El consumo por pieza debe ser mayor a 0'
-          : 'El consumo por caja debe ser mayor a 0'
-      );
-      return;
-    }
-
-    const updates: Partial<BOMFormData> = {
-      categoria_insumo: formData.categoria_insumo,
-      descripcion_insumo: formData.descripcion_insumo,
-      codigo_insumo: formData.codigo_insumo,
-      consumo_por_caja: formData.consumo_por_caja,
-      cantidad_requerida: formData.cantidad_requerida,
-      unidad_medida: formData.unidad_medida,
-    };
+  const handleSaveChanges = async () => {
+    if (!selectedCodigo || !productInfo) return;
 
     try {
-      updateRecord({ id: selectedRecord.id, data: updates });
+      const hasProductChanges = Object.keys(productEdits).length > 0;
+      
+      if (hasProductChanges) {
+        console.log('Actualizando información del producto...');
+        await new Promise<void>((resolve, reject) => {
+          updateProduct(
+            { 
+              id: productInfo.id, 
+              data: { 
+                ...productEdits, 
+                updatedBy: currentUser || 'Usuario' 
+              } 
+            },
+            {
+              onSuccess: () => resolve(),
+              onError: (error) => reject(error),
+            }
+          );
+        });
+      }
+
+      for (const insumo of insumos) {
+        console.log('Actualizando insumo:', insumo.id);
+        await new Promise<void>((resolve, reject) => {
+          updateRecord(
+            {
+              id: insumo.id,
+              data: {
+                categoria_insumo: insumo.categoria_insumo,
+                descripcion_insumo: insumo.descripcion_insumo,
+                codigo_insumo: insumo.codigo_insumo,
+                consumo_por_caja: insumo.consumo_por_caja,
+                cantidad_requerida: insumo.cantidad_requerida,
+                unidad_medida: insumo.unidad_medida,
+                updatedBy: currentUser || 'Usuario',
+              },
+            },
+            {
+              onSuccess: () => resolve(),
+              onError: (error) => reject(error),
+            }
+          );
+        });
+      }
+
       setEditModalVisible(false);
-      Alert.alert('Éxito', 'Registro actualizado exitosamente');
+      Alert.alert('Éxito', 'Cambios guardados exitosamente');
     } catch (error: any) {
-      console.error('Error en handleUpdate:', error);
+      console.error('Error al guardar cambios:', error);
       Alert.alert(
-        'Error al Actualizar',
-        error instanceof Error
-          ? error.message
-          : 'No se pudo actualizar el registro'
+        'Error',
+        error instanceof Error ? error.message : 'No se pudieron guardar los cambios'
       );
     }
   };
 
-  const handleDelete = (record: BOMRecord) => {
-    if (!isValidBOMRecord(record)) {
-      Alert.alert('Error', 'El registro seleccionado no es válido.');
-      return;
-    }
 
-    Alert.alert(
-      'Confirmar Eliminación',
-      `¿Está seguro de eliminar el registro "${record.descripcion_sku}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            deleteRecord(record.id);
-            Alert.alert('Éxito', 'Registro eliminado exitosamente');
-          },
-        },
-      ]
-    );
-  };
 
   const closeModal = () => {
     setEditModalVisible(false);
-    setSelectedRecord(null);
-    setFormData({});
-    setSelectedInsumo(null);
+    setSelectedCodigo(null);
+    setProductInfo(null);
+    setProductEdits({});
+    setInsumos([]);
+    setEditingInsumoIndex(null);
   };
 
   return (
@@ -294,18 +297,18 @@ export default function UpdateRecordsScreen() {
           />
         </View>
 
-        {filteredRecords.length === 0 ? (
+        {filteredCodigos.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Package size={64} color="#cbd5e1" />
             <Text style={styles.emptyText}>
               {searchQuery
-                ? 'No se encontraron registros'
-                : 'No hay registros aún'}
+                ? 'No se encontraron productos'
+                : 'No hay productos aún'}
             </Text>
             <Text style={styles.emptySubtext}>
               {searchQuery
-                ? 'Intenta con otro término de búsqueda'
-                : 'Crea tu primer registro'}
+                ? 'Intenta con otro código'
+                : 'Crea tu primer producto'}
             </Text>
           </View>
         ) : (
@@ -313,64 +316,59 @@ export default function UpdateRecordsScreen() {
             style={styles.recordsList}
             contentContainerStyle={styles.recordsContent}
           >
-            {filteredRecords.map((record) => (
-              <View key={record.id} style={styles.recordCard}>
-                <View style={styles.recordHeader}>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>
-                      {record.categoria_insumo}
-                    </Text>
-                  </View>
-                  <View style={styles.recordActions}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleEdit(record)}
-                    >
-                      <Edit size={18} color={CARNIC_COLORS.secondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleDelete(record)}
-                    >
-                      <Trash2 size={18} color={CARNIC_COLORS.primary} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+            {filteredCodigos.map((codigo) => {
+              const productData = products.find((p: ProductInfo) => p.codigo === codigo);
+              const insumosCount = records.filter(
+                (r) => r.codigo_sku === codigo
+              ).length;
 
-                <Text style={styles.partNumber}>SKU: {record.codigo_sku}</Text>
-                <Text style={styles.partName}>{record.descripcion_sku}</Text>
-
-                <View style={styles.recordDetails}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Código Insumo:</Text>
-                    <Text style={styles.detailValue}>
-                      {record.codigo_insumo}
-                    </Text>
+              return (
+                <TouchableOpacity
+                  key={codigo}
+                  style={styles.recordCard}
+                  onPress={() => handleOpenProduct(codigo)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.recordHeader}>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>
+                        {insumosCount} insumo{insumosCount !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <Edit size={20} color={CARNIC_COLORS.secondary} />
                   </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Cantidad Req:</Text>
-                    <Text style={styles.detailValue}>
-                      {record.unidad_medida === 'BOLSAS' ||
-                      record.unidad_medida === 'UND'
-                        ? Math.round(record.cantidad_requerida || 0)
-                        : (record.cantidad_requerida || 0).toFixed(6)}{' '}
-                      {record.unidad_medida}
-                    </Text>
-                  </View>
-                </View>
 
-                <Text style={styles.description} numberOfLines={2}>
-                  {record.descripcion_insumo}
-                </Text>
+                  <Text style={styles.partNumber}>Código: {codigo}</Text>
+                  <Text style={styles.partName}>
+                    {productData?.nombre_producto || 'Sin nombre'}
+                  </Text>
 
-                <Text style={styles.metadata}>
-                  Creado por {record.createdBy || 'Desconocido'} el{' '}
-                  {record.createdAt
-                    ? new Date(record.createdAt).toLocaleDateString('es-ES')
-                    : 'N/A'}
-                </Text>
-              </View>
-            ))}
+                  {productData && (
+                    <View style={styles.recordDetails}>
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Paquetes/Caja:</Text>
+                        <Text style={styles.detailValue}>
+                          {productData.cantidad_paquetes_por_caja}
+                        </Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Peso/Caja:</Text>
+                        <Text style={styles.detailValue}>
+                          {productData.peso_por_caja} kg
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  <Text style={styles.metadata}>
+                    Creado por {productData?.createdBy || 'Desconocido'} el{' '}
+                    {productData?.createdAt
+                      ? new Date(productData.createdAt).toLocaleDateString('es-ES')
+                      : 'N/A'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
 
@@ -393,184 +391,236 @@ export default function UpdateRecordsScreen() {
             </View>
 
             <ScrollView style={styles.modalContent}>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Código SKU</Text>
-                <View style={styles.disabledInput}>
-                  <Text style={styles.disabledInputText}>
-                    {formData.codigo_sku || 'N/A'}
-                  </Text>
-                </View>
-              </View>
+              <Text style={styles.sectionTitle}>Información del Producto</Text>
+              
+              {productInfo && (
+                <View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Código</Text>
+                    <View style={styles.disabledInput}>
+                      <Text style={styles.disabledInputText}>
+                        {productInfo.codigo}
+                      </Text>
+                    </View>
+                  </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Descripción SKU</Text>
-                <View style={styles.disabledInput}>
-                  <Text style={styles.disabledInputText}>
-                    {formData.descripcion_sku || 'N/A'}
-                  </Text>
-                </View>
-              </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Nombre del Producto</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={productEdits.nombre_producto ?? productInfo.nombre_producto}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({
+                          ...prev,
+                          nombre_producto: value,
+                        }))
+                      }
+                    />
+                  </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Categoría de Insumo *</Text>
-                <TouchableOpacity
-                  style={styles.dropdown}
-                  onPress={() => setShowCategoryModal(true)}
-                >
-                  <Text style={styles.dropdownText}>
-                    {formData.categoria_insumo || 'Seleccione una categoría'}
-                  </Text>
-                  <ChevronDown
-                    size={20}
-                    color={CARNIC_COLORS.gray[500]}
-                  />
-                </TouchableOpacity>
-              </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Cantidad Paquetes por Caja</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={String(
+                        productEdits.cantidad_paquetes_por_caja ??
+                          productInfo.cantidad_paquetes_por_caja
+                      )}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({
+                          ...prev,
+                          cantidad_paquetes_por_caja: parseFloat(value) || 0,
+                        }))
+                      }
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Descripción de Insumo *</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.dropdown,
-                    !formData.categoria_insumo && styles.dropdownDisabled,
-                  ]}
-                  onPress={() => {
-                    if (!formData.categoria_insumo) {
-                      Alert.alert(
-                        'Categoría Requerida',
-                        'Primero seleccione una categoría de insumo'
-                      );
-                      return;
-                    }
-                    if (filteredInsumos.length === 0) {
-                      Alert.alert(
-                        'Sin insumos',
-                        'No hay insumos disponibles para esta categoría'
-                      );
-                      return;
-                    }
-                    setShowInsumoModal(true);
-                  }}
-                  disabled={!formData.categoria_insumo}
-                >
-                  <Text
-                    style={[
-                      styles.dropdownText,
-                      !formData.descripcion_insumo && styles.placeholderText,
-                    ]}
-                  >
-                    {formData.descripcion_insumo || 'Seleccione un insumo'}
-                  </Text>
-                  <ChevronDown
-                    size={20}
-                    color={CARNIC_COLORS.gray[500]}
-                  />
-                </TouchableOpacity>
-                {formData.categoria_insumo && filteredInsumos.length > 0 && (
-                  <Text style={styles.hint}>
-                    {filteredInsumos.length} insumo(s) disponible(s)
-                  </Text>
-                )}
-              </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Peso por Caja (kg)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={String(
+                        productEdits.peso_por_caja ?? productInfo.peso_por_caja
+                      )}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({
+                          ...prev,
+                          peso_por_caja: parseFloat(value) || 0,
+                        }))
+                      }
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Código de Insumo</Text>
-                <View style={styles.disabledInput}>
-                  <Text style={styles.disabledInputText}>
-                    {formData.codigo_insumo || 'Se asigna automáticamente'}
-                  </Text>
-                </View>
-              </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Peso Promedio por Paquete (kg)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={String(
+                        productEdits.peso_promedio_por_paquete ??
+                          productInfo.peso_promedio_por_paquete
+                      )}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({
+                          ...prev,
+                          peso_promedio_por_paquete: parseFloat(value) || 0,
+                        }))
+                      }
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
 
-              {usaConsumoPorPieza && (
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Cantidad de Piezas por Caja</Text>
-                  <View style={styles.disabledInput}>
-                    <Text style={styles.disabledInputText}>
-                      {formData.cantidad_piezas_por_caja || 0}
-                    </Text>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Tipo de Empaque</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={productEdits.tipo_empaque ?? productInfo.tipo_empaque}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({ ...prev, tipo_empaque: value }))
+                      }
+                    />
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Size Empaque</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={productEdits.size_empaque ?? productInfo.size_empaque}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({ ...prev, size_empaque: value }))
+                      }
+                    />
+                  </View>
+
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Sala Origen</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={productEdits.sala_origen ?? productInfo.sala_origen}
+                      onChangeText={(value) =>
+                        setProductEdits((prev) => ({ ...prev, sala_origen: value }))
+                      }
+                    />
                   </View>
                 </View>
               )}
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  {usaConsumoPorPieza
-                    ? 'Consumo por Pieza *'
-                    : 'Consumo por Caja *'}
-                </Text>
-                <Text style={styles.hint}>
-                  {usaConsumoPorPieza
-                    ? 'Cantidad que consume cada pieza'
-                    : 'Cantidad que consume cada caja del SKU'}
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={
-                    formData.consumo_por_caja
-                      ? String(formData.consumo_por_caja)
-                      : ''
-                  }
-                  onChangeText={(value) => {
-                    const num = parseFloat(value) || 0;
-                    updateField('consumo_por_caja', num as any);
-                  }}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>
-                  Cantidad Requerida (Calculada)
-                </Text>
-                <View style={styles.calculatedField}>
-                  <Text style={styles.calculatedValue}>
-                    {formData.cantidad_requerida
-                      ? formData.unidad_medida === 'BOLSAS' ||
-                        formData.unidad_medida === 'UND'
-                        ? Math.round(
-                            formData.cantidad_requerida
-                          ).toString()
-                        : formData.cantidad_requerida.toFixed(6)
-                      : formData.unidad_medida === 'BOLSAS' ||
-                        formData.unidad_medida === 'UND'
-                      ? '0'
-                      : '0.000000'}
-                  </Text>
-                  {selectedInsumo && formData.consumo_por_caja && (
-                    <Text style={styles.calculatedHint}>
-                      {usaConsumoPorPieza
-                        ? `= (${formData.cantidad_piezas_por_caja || 0} × ${
-                            formData.consumo_por_caja
-                          }) / ${selectedInsumo.contenido_por_unidad}`
-                        : `= ${formData.consumo_por_caja} / ${selectedInsumo.contenido_por_unidad}`}
+              <Text style={styles.sectionTitle}>Insumos Asociados</Text>
+              
+              {insumos.map((insumo, index) => {
+                const usaConsumoPorPieza = CATEGORIAS_CON_CONSUMO_POR_PIEZA.includes(
+                  insumo.categoria_insumo
+                );
+                
+                return (
+                  <View key={insumo.id} style={styles.insumoCard}>
+                    <Text style={styles.insumoTitle}>
+                      Insumo {index + 1}: {insumo.categoria_insumo}
                     </Text>
-                  )}
-                </View>
-              </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Unidad de Medida</Text>
-                <View style={styles.disabledInput}>
-                  <Text style={styles.disabledInputText}>
-                    {formData.unidad_medida || 'N/A'}
-                  </Text>
-                </View>
-              </View>
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Categoría de Insumo</Text>
+                      <TouchableOpacity
+                        style={styles.dropdown}
+                        onPress={() => {
+                          setEditingInsumoIndex(index);
+                          setShowCategoryModal(true);
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>
+                          {insumo.categoria_insumo}
+                        </Text>
+                        <ChevronDown size={20} color="#64748b" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Descripción de Insumo</Text>
+                      <TouchableOpacity
+                        style={styles.dropdown}
+                        onPress={() => {
+                          setEditingInsumoIndex(index);
+                          setShowInsumoModal(true);
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>
+                          {insumo.descripcion_insumo}
+                        </Text>
+                        <ChevronDown size={20} color="#64748b" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Código de Insumo</Text>
+                      <View style={styles.disabledInput}>
+                        <Text style={styles.disabledInputText}>
+                          {insumo.codigo_insumo}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>
+                        {usaConsumoPorPieza
+                          ? 'Consumo por Pieza'
+                          : 'Consumo por Caja'}
+                      </Text>
+                      <TextInput
+                        style={styles.input}
+                        value={String(insumo.consumo_por_caja)}
+                        onChangeText={(value) =>
+                          updateInsumoConsumption(index, parseFloat(value) || 0)
+                        }
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Cantidad Requerida (Calculada)</Text>
+                      <View style={styles.calculatedField}>
+                        <Text style={styles.calculatedValue}>
+                          {insumo.unidad_medida === 'BOLSAS' ||
+                          insumo.unidad_medida === 'UND'
+                            ? Math.round(insumo.cantidad_requerida)
+                            : insumo.cantidad_requerida.toFixed(6)}
+                        </Text>
+                        {insumo.selectedInsumo && (
+                          <Text style={styles.calculatedHint}>
+                            {usaConsumoPorPieza
+                              ? `= (${insumo.cantidad_piezas_por_caja} × ${insumo.consumo_por_caja}) / ${insumo.selectedInsumo.contenido_por_unidad}`
+                              : `= ${insumo.consumo_por_caja} / ${insumo.selectedInsumo.contenido_por_unidad}`}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Unidad de Medida</Text>
+                      <View style={styles.disabledInput}>
+                        <Text style={styles.disabledInputText}>
+                          {insumo.unidad_medida}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
 
               <TouchableOpacity
                 style={[
                   styles.updateButton,
-                  isUpdatingRecord && styles.updateButtonDisabled,
+                  (isUpdatingRecord || isUpdatingProduct) && styles.updateButtonDisabled,
                 ]}
-                onPress={handleUpdate}
-                disabled={isUpdatingRecord}
+                onPress={handleSaveChanges}
+                disabled={isUpdatingRecord || isUpdatingProduct}
                 activeOpacity={0.8}
               >
+                <Save size={20} color="#fff" style={{ marginRight: 8 }} />
                 <Text style={styles.updateButtonText}>
-                  {isUpdatingRecord
-                    ? 'Actualizando...'
-                    : 'Actualizar Registro'}
+                  {isUpdatingRecord || isUpdatingProduct
+                    ? 'Guardando...'
+                    : 'Guardar Cambios'}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -600,7 +650,7 @@ export default function UpdateRecordsScreen() {
                     key={categoria}
                     style={[
                       styles.modalItem,
-                      formData.categoria_insumo === categoria &&
+                      currentEditingInsumo?.categoria_insumo === categoria &&
                         styles.modalItemSelected,
                     ]}
                     onPress={() => handleSelectCategoria(categoria)}
@@ -608,7 +658,7 @@ export default function UpdateRecordsScreen() {
                     <Text
                       style={[
                         styles.modalItemText,
-                        formData.categoria_insumo === categoria &&
+                        currentEditingInsumo?.categoria_insumo === categoria &&
                           styles.modalItemTextSelected,
                       ]}
                     >
@@ -639,12 +689,12 @@ export default function UpdateRecordsScreen() {
                 </TouchableOpacity>
               </View>
               <ScrollView>
-                {filteredInsumos.map((insumo) => (
+                {filteredInsumosForCatalog.map((insumo) => (
                   <TouchableOpacity
                     key={insumo.codigo}
                     style={[
                       styles.modalItem,
-                      formData.codigo_insumo === insumo.codigo &&
+                      currentEditingInsumo?.codigo_insumo === insumo.codigo &&
                         styles.modalItemSelected,
                     ]}
                     onPress={() => handleSelectInsumo(insumo)}
@@ -652,7 +702,7 @@ export default function UpdateRecordsScreen() {
                     <Text
                       style={[
                         styles.modalItemText,
-                        formData.codigo_insumo === insumo.codigo &&
+                        currentEditingInsumo?.codigo_insumo === insumo.codigo &&
                           styles.modalItemTextSelected,
                       ]}
                     >
@@ -943,6 +993,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  insumoCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  insumoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: CARNIC_COLORS.secondary,
+    marginBottom: 12,
   },
   modalOverlay: {
     flex: 1,

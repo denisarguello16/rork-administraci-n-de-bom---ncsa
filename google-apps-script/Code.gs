@@ -50,13 +50,13 @@ function doPost(e) {
         break;
 
       case 'updateBOMRecord':
-        if (!data.codigo_sku || !data.updates) {
+        if (!data.id || !data.updates) {
           response = {
             success: false,
-            error: 'doPost: acción "updateBOMRecord" requiere "codigo_sku" y "updates". Body: ' + JSON.stringify(data)
+            error: 'doPost: acción "updateBOMRecord" requiere "id" y "updates". Body: ' + JSON.stringify(data)
           };
         } else {
-          response = updateBOMRecord(data.codigo_sku, data.updates);
+          response = updateBOMRecord(data.id, data.updates);
         }
         break;
 
@@ -302,9 +302,9 @@ function addBOMRecord(record) {
   }
 }
 
-function updateBOMRecord(codigo_sku, updates) {
+function updateBOMRecord(id, updates) {
   try {
-    Logger.log('updateBOMRecord - codigo_sku: ' + codigo_sku + ', updates: ' + JSON.stringify(updates));
+    Logger.log('updateBOMRecord - id: ' + id + ', updates: ' + JSON.stringify(updates));
 
     if (!updates || typeof updates !== 'object') {
       return {
@@ -317,13 +317,16 @@ function updateBOMRecord(codigo_sku, updates) {
     var obsoleteSheet = getOrCreateSheet(SHEETS.OBSOLETO);
     var data = sheet.getDataRange().getValues();
     var timestamp = new Date().toISOString();
-
-    var updatedCount = 0;
+    var searchId = String(id).trim();
 
     for (var i = 1; i < data.length; i++) {
-      if (data[i][2] === codigo_sku && String(data[i][15] || '').trim() === 'Activo') {
+      var rowId = String(data[i][0]).trim();
+      var estado = String(data[i][15] || '').trim();
+      
+      if (rowId === searchId && (estado === 'Activo' || estado === '')) {
         var oldVersion = data[i][1] || 0;
         var newVersion = oldVersion + 1;
+        var codigo_sku = data[i][2];
 
         var obsoleteRow = [
           Date.now().toString() + '_' + i,
@@ -367,16 +370,15 @@ function updateBOMRecord(codigo_sku, updates) {
         if (updates.unidad_medida !== undefined) sheet.getRange(i + 1, 11).setValue(updates.unidad_medida);
         sheet.getRange(i + 1, 14).setValue(updates.updatedBy || 'Sistema');
         sheet.getRange(i + 1, 15).setValue(timestamp);
-
-        updatedCount++;
+        
+        SpreadsheetApp.flush();
+        
+        Logger.log('Registro actualizado correctamente en fila ' + (i + 1) + ', nueva versión: ' + newVersion);
+        return { success: true, message: 'Registro actualizado correctamente', version: newVersion };
       }
     }
 
-    if (updatedCount > 0) {
-      return { success: true, message: updatedCount + ' registro(s) actualizado(s) correctamente' };
-    }
-
-    return { success: false, error: 'Registro no encontrado' };
+    return { success: false, error: 'Registro no encontrado con ID: ' + id };
 
   } catch (error) {
     Logger.log('ERROR en updateBOMRecord: ' + error.toString());
@@ -430,7 +432,7 @@ function deleteBOMRecord(id) {
 }
 
 function getBOMRecords() {
-  try:
+  try {
     var sheet = getOrCreateSheet(SHEETS.INFORMACION_INSUMOS);
     var data = sheet.getDataRange().getValues();
 

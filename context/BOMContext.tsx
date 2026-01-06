@@ -209,7 +209,7 @@ const addRecordMutation = useMutation({
       try {
         const requestBody = {
           action: 'updateBOMRecord',
-          codigo_sku: recordToUpdate.codigo_sku,
+          id: id,
           updates,
         };
 
